@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.db.AccessLogEntity
 import com.example.data.db.AccessPassEntity
 import com.example.ui.components.MonthlyAccessDashboardCard
+import com.example.ui.components.WorkManagerNotificationStatusCard
+import com.example.worker.QrScanNotificationWorker
 import com.example.ui.theme.SleekBackground
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekBorderSubtle
@@ -88,6 +90,7 @@ fun QrScannerScreen(
     onValidateCode: suspend (String) -> Pair<Boolean, AccessPassEntity?>,
     onDeleteLog: (AccessLogEntity) -> Unit = {},
     onClearLogs: () -> Unit = {},
+    onTriggerTestNotification: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -434,6 +437,28 @@ fun QrScannerScreen(
                     onSimulateScan = { executeValidation(pass.passCode) }
                 )
             }
+        }
+
+        // ==================== NOTIFICACIONES LOCALES WORKMANAGER ====================
+        item {
+            WorkManagerNotificationStatusCard(
+                onTriggerTestNotification = {
+                    if (onTriggerTestNotification != {}) {
+                        onTriggerTestNotification()
+                    } else {
+                        QrScanNotificationWorker.enqueueNotification(
+                            context = context,
+                            house = "Casa 01",
+                            residentName = "Santiago (Alfha)",
+                            visitorName = "Visitante (Simulación)",
+                            passCode = "MEDUSA-TEST-" + (100..999).random(),
+                            isGranted = true,
+                            resultReason = "Prueba de Alerta WorkManager",
+                            timestampMs = System.currentTimeMillis()
+                        )
+                    }
+                }
+            )
         }
 
         // ==================== DASHBOARD ESTADÍSTICO MENSUAL CON GRÁFICOS (D3.JS) ====================

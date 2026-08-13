@@ -11,16 +11,14 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk = 36
-
-    defaultConfig {
+  compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.sistemamedusa.xkqmzp"
+    applicationId = "com.alfredo.medusaalfha"
     minSdk = 24
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    targetSdk = 35
+    versionCode = 2
+    versionName = "1.1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -95,6 +93,7 @@ dependencies {
   // implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.work.runtime.ktx)
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)

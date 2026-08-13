@@ -33,6 +33,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -86,6 +87,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun MedusaAppScreen(viewModel: MedusaViewModel) {
+    val context = LocalContext.current
     val activeTab by viewModel.activeTab.collectAsState()
     val activeRole by viewModel.userRole.collectAsState()
     val chatMessages by viewModel.chatMessages.collectAsState()
@@ -146,12 +148,13 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                             onDeleteMemory = { viewModel.deleteMemoryNode(it) },
                             onCreatePass = { h, r, v, t, hrs -> viewModel.createAccessPass(h, r, v, t, hrs) },
                             onCreateResidentCredential = { h, n, l, p -> viewModel.createResidentCredential(h, n, l, p) },
-                            onValidatePassCode = { code -> viewModel.validateAccessPassCode(code) },
+                            onValidatePassCode = { code -> viewModel.validateAccessPassCode(code, context) },
                             onDeletePass = { pass -> viewModel.deleteAccessPass(pass) },
                             onPurgeExpiredPasses = { viewModel.purgeExpiredAccessPasses() },
                             onNavigateToChat = { viewModel.selectTab(MedusaTab.NEURAL_CHAT) },
                             onNavigateToVault = { viewModel.selectTab(MedusaTab.MEMORY_VAULT) },
-                            onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) }
+                            onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) },
+                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) }
                         )
                     }
                     MedusaTab.NEURAL_CHAT -> {
@@ -166,9 +169,10 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                         QrScannerScreen(
                             accessPasses = accessPasses,
                             accessLogs = accessLogs,
-                            onValidateCode = { code -> viewModel.validateAccessPassCode(code) },
+                            onValidateCode = { code -> viewModel.validateAccessPassCode(code, context) },
                             onDeleteLog = { log -> viewModel.deleteAccessLog(log) },
-                            onClearLogs = { viewModel.clearAllAccessLogs() }
+                            onClearLogs = { viewModel.clearAllAccessLogs() },
+                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) }
                         )
                     }
                     MedusaTab.SMART_PARCEL -> {

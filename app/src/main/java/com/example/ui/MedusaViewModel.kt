@@ -16,6 +16,7 @@ import com.example.data.db.MemoryNodeEntity
 import com.example.data.db.ParcelEntity
 import com.example.data.model.PackageScanResult
 import com.example.data.repository.ParcelRepository
+import com.example.worker.QrScanNotificationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -511,7 +512,7 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    suspend fun validateAccessPassCode(code: String): Pair<Boolean, AccessPassEntity?> {
+    suspend fun validateAccessPassCode(code: String, context: Context? = null): Pair<Boolean, AccessPassEntity?> {
         val cleanCode = code.trim().uppercase()
         val pass = accessPassDao.getPassByCode(cleanCode)
         val now = System.currentTimeMillis()
@@ -546,7 +547,43 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
 
         accessLogDao.insertAccessLog(log)
 
+        // Enqueue local background notification via WorkManager to alert resident
+        val ctx = context ?: getApplication<Application>().applicationContext
+        try {
+            QrScanNotificationWorker.enqueueNotification(
+                context = ctx,
+                house = pass?.residentHouse ?: "Caseta Principal",
+                residentName = pass?.residentName ?: "Residente Medusa OS",
+                visitorName = pass?.visitorName ?: "Visitante",
+                passCode = cleanCode,
+                isGranted = isGranted,
+                resultReason = reason,
+                timestampMs = now
+            )
+        } catch (e: Exception) {
+            Log.e("MedusaViewModel", "WorkManager notification enqueue failed", e)
+        }
+
         return Pair(isGranted, updatedPass)
+    }
+
+    fun triggerTestWorkManagerNotification(
+        context: Context,
+        house: String = "Casa 01",
+        residentName: String = "Santiago (Alfha)",
+        visitorName: String = "Visitante de Prueba"
+    ) {
+        val testCode = "MEDUSA-TEST-" + (100..999).random()
+        QrScanNotificationWorker.enqueueNotification(
+            context = context,
+            house = house,
+            residentName = residentName,
+            visitorName = visitorName,
+            passCode = testCode,
+            isGranted = true,
+            resultReason = "Prueba de Notificación WorkManager",
+            timestampMs = System.currentTimeMillis()
+        )
     }
 
     fun deleteAccessLog(log: AccessLogEntity) {

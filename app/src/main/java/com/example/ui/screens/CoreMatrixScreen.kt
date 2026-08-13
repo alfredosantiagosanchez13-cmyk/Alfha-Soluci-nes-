@@ -45,12 +45,15 @@ import com.example.data.db.MemoryNodeEntity
 import com.example.ui.UserRole
 import com.example.ui.components.AdminResidentManagerCard
 import com.example.ui.components.AlphaRootCommandCard
+import com.example.ui.components.ApkInstallerGuideCard
 import com.example.ui.components.GuardAccessConsoleCard
 import com.example.ui.components.MemoryNodeCard
 import com.example.ui.components.MetricsGridCard
 import com.example.ui.components.MonthlyAccessDashboardCard
 import com.example.ui.components.ResidentQrGeneratorCard
 import com.example.ui.components.SynapticAlignmentCard
+import com.example.ui.components.WorkManagerNotificationStatusCard
+import com.example.worker.QrScanNotificationWorker
 import com.example.ui.theme.SleekBackground
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekSurface
@@ -79,6 +82,7 @@ fun CoreMatrixScreen(
     onNavigateToChat: () -> Unit,
     onNavigateToVault: () -> Unit,
     onNavigateToParcel: () -> Unit,
+    onTriggerTestNotification: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -167,6 +171,18 @@ fun CoreMatrixScreen(
             MonthlyAccessDashboardCard(
                 accessLogs = accessLogs
             )
+        }
+
+        // 6. WorkManager Local Notification System Card
+        item {
+            WorkManagerNotificationStatusCard(
+                onTriggerTestNotification = onTriggerTestNotification
+            )
+        }
+
+        // 7. APK Installer Mobile Guide Card
+        item {
+            ApkInstallerGuideCard()
         }
 
         // 5. Last Learned Memory Toast Banner
