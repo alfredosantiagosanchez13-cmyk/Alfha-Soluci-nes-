@@ -11,7 +11,9 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 36
+
+    defaultConfig {
 
   defaultConfig {
     applicationId = "com.aistudio.sistemamedusa.xkqmzp"
