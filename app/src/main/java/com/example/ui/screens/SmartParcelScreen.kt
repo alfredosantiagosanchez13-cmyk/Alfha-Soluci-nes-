@@ -54,9 +54,12 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -122,6 +125,7 @@ fun SmartParcelScreen(
     val scanResult by viewModel.lastScanResult.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedParcelForQr by remember { mutableStateOf<ParcelEntity?>(null) }
 
     val filteredParcels = remember(parcels, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -540,6 +544,7 @@ fun SmartParcelScreen(
             items(filteredParcels, key = { it.id }) { parcel ->
                 ParcelItemCard(
                     parcel = parcel,
+                    onShowQr = { selectedParcelForQr = parcel },
                     onSendWhatsApp = {
                         viewModel.sendWhatsAppNotice(
                             context = context,
@@ -560,6 +565,35 @@ fun SmartParcelScreen(
         item {
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
+
+    // Modal QR Contra-Entrega Dialog
+    if (selectedParcelForQr != null) {
+        val p = selectedParcelForQr!!
+        val qrPassCode = remember(p.id, p.houseNumber) {
+            "MEDUSA-PK-${p.id}-${p.houseNumber.replace(" ", "").take(4).uppercase()}"
+        }
+        ParcelQrDeliveryDialog(
+            parcel = p,
+            passCode = qrPassCode,
+            onDismiss = { selectedParcelForQr = null },
+            onSendWhatsApp = {
+                viewModel.sendWhatsAppNotice(
+                    context = context,
+                    parcelId = p.id,
+                    houseNumber = p.houseNumber,
+                    recipientName = p.recipientName,
+                    carrier = p.carrier,
+                    description = p.description,
+                    phone = p.phone,
+                    pickupCode = qrPassCode
+                )
+            },
+            onMarkDelivered = {
+                viewModel.markParcelDelivered(p.id)
+                selectedParcelForQr = null
+            }
+        )
     }
 }
 
@@ -897,6 +931,7 @@ fun ScanConfirmationCard(
 @Composable
 fun ParcelItemCard(
     parcel: ParcelEntity,
+    onShowQr: () -> Unit,
     onSendWhatsApp: () -> Unit,
     onMarkDelivered: () -> Unit,
     onDelete: () -> Unit
@@ -988,7 +1023,7 @@ fun ParcelItemCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1002,7 +1037,28 @@ fun ParcelItemCard(
                     color = SleekTextMuted
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Security QR Token Button
+                    Button(
+                        onClick = onShowQr,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SleekVioletDark,
+                            contentColor = SleekVioletPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "Ver QR Contra-Entrega",
+                            tint = SleekVioletPrimary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "QR Entrega", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
                     if (!isDelivered && parcel.phone.isNotBlank()) {
                         IconButton(
                             onClick = onSendWhatsApp,
@@ -1060,4 +1116,181 @@ fun ParcelItemCard(
             }
         }
     }
+}
+
+/**
+ * High-Security QR Delivery Dialog for Caseta & Resident Verification
+ */
+@Composable
+fun ParcelQrDeliveryDialog(
+    parcel: ParcelEntity,
+    passCode: String,
+    onDismiss: () -> Unit,
+    onSendWhatsApp: () -> Unit,
+    onMarkDelivered: () -> Unit
+) {
+    val isDelivered = parcel.status == "ENTREGADO"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SleekSurfaceVariant,
+                    contentColor = SleekTextPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Cerrar")
+            }
+        },
+        dismissButton = {
+            if (!isDelivered) {
+                Button(
+                    onClick = onMarkDelivered,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SleekVioletPrimary,
+                        contentColor = SleekVioletDark
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Marcar Entregado", fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode2,
+                        contentDescription = null,
+                        tint = SleekVioletPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "QR CONTRA-ENTREGA",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SleekTextPrimary
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // QR Graphic Matrix Box
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceEvenly,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "Código QR de Entrega",
+                            tint = Color.Black,
+                            modifier = Modifier.size(120.dp)
+                        )
+                        Text(
+                            text = passCode,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            color = Color.Black
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Security Details Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SleekSurface)
+                        .border(1.dp, SleekBorderSubtle, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Casa / Destino:", fontSize = 11.sp, color = SleekTextMuted)
+                            Text(parcel.houseNumber, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SleekVioletPrimary)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Destinatario:", fontSize = 11.sp, color = SleekTextMuted)
+                            Text(parcel.recipientName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = SleekTextPrimary)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Empresa:", fontSize = 11.sp, color = SleekTextMuted)
+                            Text(parcel.carrier, fontSize = 11.sp, color = SleekTextSecondary)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Estado:", fontSize = 11.sp, color = SleekTextMuted)
+                            Text(
+                                text = if (isDelivered) "ENTREGADO ✅" else "PENDIENTE EN CASETA ⏳",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDelivered) Color(0xFF10B981) else SleekVioletPrimary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (parcel.phone.isNotBlank()) {
+                    Button(
+                        onClick = onSendWhatsApp,
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SleekVioletDark,
+                            contentColor = SleekVioletPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Reenviar QR por WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        },
+        containerColor = SleekSurfaceVariant,
+        shape = RoundedCornerShape(20.dp)
+    )
 }

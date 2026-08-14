@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -42,6 +43,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.UserProfile
 import com.example.ui.UserRole
 import com.example.ui.theme.SleekBackground
 import com.example.ui.theme.SleekBorder
@@ -57,8 +59,11 @@ import com.example.ui.theme.SleekVioletPrimary
 @Composable
 fun RoleDelimitationHeader(
     activeRole: UserRole,
+    currentUserProfile: UserProfile? = null,
     onRoleSelected: (UserRole) -> Unit,
     onOpenApiKey: () -> Unit,
+    onOpenAuth: () -> Unit = {},
+    onOpenNexusSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -104,7 +109,61 @@ fun RoleDelimitationHeader(
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Sleek Nexus Customizer Button
+                IconButton(
+                    onClick = onOpenNexusSettings,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(SleekSurfaceVariant)
+                        .border(1.dp, SleekBorderSubtle, CircleShape)
+                        .semantics {
+                            testTag = "nexus_settings_header_btn"
+                            contentDescription = "Personalización Sleek Nexus"
+                        }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = "Sleek Nexus Settings",
+                        tint = SleekVioletPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Firebase Auth Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (currentUserProfile != null) Color(0xFF064E3B) else SleekSurfaceVariant)
+                        .border(
+                            1.dp,
+                            if (currentUserProfile != null) Color(0xFF10B981) else SleekBorderSubtle,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable { onOpenAuth() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .semantics { testTag = "firebase_auth_header_btn" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "Autenticación Firebase",
+                            tint = if (currentUserProfile != null) Color(0xFF34D399) else SleekVioletPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (currentUserProfile != null) "AUTH: ${currentUserProfile.displayName.take(8)}" else "INICIAR SESIÓN",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (currentUserProfile != null) Color(0xFFA7F3D0) else SleekTextPrimary,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+
                 // Key dialog trigger button
                 IconButton(
                     onClick = onOpenApiKey,

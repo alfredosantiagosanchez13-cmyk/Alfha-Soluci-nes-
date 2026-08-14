@@ -347,7 +347,9 @@ fun MemoryNodeCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categoryIcon = when (node.category) {
+    val categoryIcon = when (node.category.uppercase()) {
+        "COMMUNITY", "ESENCIA" -> "🏡"
+        "AMENITY", "CONVIVENCIA" -> "🌿"
         "PREFERENCE" -> "✨"
         "DIRECTIVE" -> "🛡️"
         "SECURITY" -> "🔒"

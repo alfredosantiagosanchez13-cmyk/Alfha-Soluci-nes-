@@ -8,15 +8,31 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.api.GeminiRepository
+import com.example.data.db.AccessLogDao
 import com.example.data.db.AccessLogEntity
+import com.example.data.db.AccessPassDao
 import com.example.data.db.AccessPassEntity
+import com.example.data.db.ChatMessageDao
 import com.example.data.db.ChatMessageEntity
 import com.example.data.db.MedusaDatabase
+import com.example.data.db.MemoryNodeDao
 import com.example.data.db.MemoryNodeEntity
 import com.example.data.db.ParcelEntity
 import com.example.data.model.PackageScanResult
+import com.example.data.model.UserProfile
+import com.example.data.repository.AiLearningContextRepository
+import com.example.data.repository.AiMemoryRepository
+import com.example.data.repository.FirebaseAuthRepository
+import com.example.data.repository.GoogleAiGeminiRepository
 import com.example.data.repository.ParcelRepository
+import com.example.ui.theme.NexusAccentPalette
+import com.example.ui.theme.NexusFontStyle
+import com.example.ui.theme.NexusGlowLevel
+import com.example.ui.theme.SleekNexusThemeConfig
 import com.example.worker.QrScanNotificationWorker
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.FirebaseUser
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +41,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
+import javax.inject.Inject
 
 enum class MedusaTab {
     CORE_MATRIX,
@@ -41,15 +58,58 @@ enum class UserRole(val label: String, val badge: String, val description: Strin
     ADMINISTRACION("Administración", "⚙️ ADMIN", "Auditoría, métricas D3 y directorio residencial")
 }
 
-class MedusaViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class MedusaViewModel @Inject constructor(
+    application: Application,
+    private val db: MedusaDatabase,
+    private val chatDao: ChatMessageDao,
+    private val memoryDao: MemoryNodeDao,
+    private val parcelRepository: ParcelRepository,
+    private val accessPassDao: AccessPassDao,
+    private val accessLogDao: AccessLogDao,
+    private val geminiRepo: GeminiRepository,
+    val googleAiRepo: GoogleAiGeminiRepository,
+    private val authRepo: FirebaseAuthRepository,
+    val aiLearningRepo: AiLearningContextRepository,
+    val aiMemoryRepo: AiMemoryRepository
+) : AndroidViewModel(application) {
 
-    private val db = MedusaDatabase.getDatabase(application)
-    private val chatDao = db.chatMessageDao()
-    private val memoryDao = db.memoryNodeDao()
-    private val parcelRepository = ParcelRepository(db.parcelDao())
-    private val accessPassDao = db.accessPassDao()
-    private val accessLogDao = db.accessLogDao()
-    private val geminiRepo = GeminiRepository()
+    constructor(application: Application) : this(
+        application = application,
+        db = MedusaDatabase.getDatabase(application),
+        chatDao = MedusaDatabase.getDatabase(application).chatMessageDao(),
+        memoryDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
+        parcelRepository = ParcelRepository(MedusaDatabase.getDatabase(application).parcelDao()),
+        accessPassDao = MedusaDatabase.getDatabase(application).accessPassDao(),
+        accessLogDao = MedusaDatabase.getDatabase(application).accessLogDao(),
+        geminiRepo = GeminiRepository(),
+        googleAiRepo = GoogleAiGeminiRepository(),
+        authRepo = FirebaseAuthRepository(),
+        aiLearningRepo = AiLearningContextRepository(
+            memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
+            interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
+            memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
+            geminiRepository = GeminiRepository()
+        ),
+        aiMemoryRepo = AiMemoryRepository(
+            chatMessageDao = MedusaDatabase.getDatabase(application).chatMessageDao(),
+            messageDao = MedusaDatabase.getDatabase(application).messageDao(),
+            conversationDao = MedusaDatabase.getDatabase(application).conversationDao(),
+            memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
+            interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
+            memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
+            geminiRepository = GeminiRepository()
+        )
+    )
+
+    private val _authUserProfile = MutableStateFlow<UserProfile?>(null)
+    val authUserProfile: StateFlow<UserProfile?> = _authUserProfile.asStateFlow()
+
+    private val _isAuthLoading = MutableStateFlow(false)
+    val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
+
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
 
     val chatMessages: StateFlow<List<ChatMessageEntity>> = chatDao.getAllMessages()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -99,6 +159,42 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
     private val _lastLearnedMemory = MutableStateFlow<MemoryNodeEntity?>(null)
     val lastLearnedMemory: StateFlow<MemoryNodeEntity?> = _lastLearnedMemory.asStateFlow()
 
+    private val nexusPrefs by lazy {
+        getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
+    }
+
+    private val _nexusThemeConfig = MutableStateFlow(loadPersistedThemeConfig())
+    val nexusThemeConfig: StateFlow<SleekNexusThemeConfig> = _nexusThemeConfig.asStateFlow()
+
+    private fun loadPersistedThemeConfig(): SleekNexusThemeConfig {
+        return try {
+            val prefs = getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
+            val paletteId = prefs.getString("nexus_palette_id", NexusAccentPalette.HYPER_VIOLET.id) ?: NexusAccentPalette.HYPER_VIOLET.id
+            val fontId = prefs.getString("nexus_font_id", NexusFontStyle.NEXUS_TECH.id) ?: NexusFontStyle.NEXUS_TECH.id
+            val glowId = prefs.getString("nexus_glow_id", NexusGlowLevel.BALANCED.id) ?: NexusGlowLevel.BALANCED.id
+            SleekNexusThemeConfig(
+                accentPalette = NexusAccentPalette.fromId(paletteId),
+                fontStyle = NexusFontStyle.fromId(fontId),
+                glowLevel = NexusGlowLevel.fromId(glowId)
+            )
+        } catch (_: Exception) {
+            SleekNexusThemeConfig()
+        }
+    }
+
+    fun updateNexusTheme(newConfig: SleekNexusThemeConfig) {
+        _nexusThemeConfig.value = newConfig
+        try {
+            nexusPrefs.edit()
+                .putString("nexus_palette_id", newConfig.accentPalette.id)
+                .putString("nexus_font_id", newConfig.fontStyle.id)
+                .putString("nexus_glow_id", newConfig.glowLevel.id)
+                .apply()
+        } catch (e: Exception) {
+            Log.e("MedusaViewModel", "Error guardando configuración Nexus Theme", e)
+        }
+    }
+
     // Synaptic alignment score calculated dynamically based on nodes & interactions
     val synapticAlignmentScore: StateFlow<Float> = combine(messageCount, memoryCount) { msgs, memories ->
         val base = 90.0f
@@ -111,6 +207,25 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
         seedInitialMemoriesIfEmpty()
         seedInitialAccessPassesIfEmpty()
         seedInitialAccessLogsIfEmpty()
+        observeAuthState()
+    }
+
+    private fun observeAuthState() {
+        viewModelScope.launch {
+            authRepo.authStateFlow.collect { firebaseUser ->
+                if (firebaseUser != null) {
+                    val profile = authRepo.fetchUserProfile(
+                        uid = firebaseUser.uid,
+                        fallbackEmail = firebaseUser.email ?: "usuario@medusa.app",
+                        fallbackName = firebaseUser.displayName ?: "Usuario Medusa"
+                    )
+                    _authUserProfile.value = profile
+                    _userRole.value = profile.role
+                } else {
+                    _authUserProfile.value = null
+                }
+            }
+        }
     }
 
     private fun seedInitialAccessLogsIfEmpty() {
@@ -219,23 +334,44 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
                 if (currentList.isEmpty()) {
                     val initialNodes = listOf(
                         MemoryNodeEntity(
-                            category = "PREFERENCE",
-                            title = "Estética Medusa OS",
-                            detail = "Preferencia confirmada por interfaz oscura futurista Sleek Nexus con brillo violeta.",
-                            confidenceScore = 0.99f,
+                            category = "COMMUNITY",
+                            title = "Esencia Residencial Alfha",
+                            detail = "Comunidad armónica, familiar, pet-friendly y sustentable. Se prioriza la seguridad, la convivencia pacífica y el respeto mutuo entre vecinos.",
+                            confidenceScore = 1.0f,
                             isUserAdded = false
                         ),
                         MemoryNodeEntity(
                             category = "DIRECTIVE",
-                            title = "Protocolo Nexus v4.2",
-                            detail = "Respuesta analítica, concisa y leal al usuario. Prioridad máxima en persistencia de contexto.",
+                            title = "Horario de Silencio y Descanso",
+                            detail = "Horario de descanso vecinal estricto de 22:00 a 08:00 hrs. Volumen moderado en terrazas y respeto absoluto al descanso de los residentes.",
+                            confidenceScore = 0.99f,
+                            isUserAdded = false
+                        ),
+                        MemoryNodeEntity(
+                            category = "AMENITY",
+                            title = "Reglamento de Amenidades",
+                            detail = "Casa Club, Alberca climatizada, Parque Canino y Canchas de Pádel operan de 06:00 a 22:00 hrs. Acceso controlado con QR emitido por la administración.",
                             confidenceScore = 0.98f,
                             isUserAdded = false
                         ),
                         MemoryNodeEntity(
+                            category = "PREFERENCE",
+                            title = "Atención Cálida a Residentes",
+                            detail = "Saludar con calidez y respeto a cada familia por su nombre y casa. Apoyar proactivamente con paquetería inteligente y avisos de caseta.",
+                            confidenceScore = 0.98f,
+                            isUserAdded = false
+                        ),
+                        MemoryNodeEntity(
+                            category = "SECURITY",
+                            title = "Protocolo Caseta y Visitantes",
+                            detail = "Todo visitante o proveedor debe contar con pase QR verificado antes de ingresar. Notificación inmediata al residente al recibir paquetería.",
+                            confidenceScore = 1.0f,
+                            isUserAdded = false
+                        ),
+                        MemoryNodeEntity(
                             category = "FACT",
-                            title = "Sistema Medusa OS",
-                            detail = "Núcleo de inteligencia con base de datos local Room para persistencia de conversaciones y memoria a largo plazo.",
+                            title = "Memoria Comunitaria Continua",
+                            detail = "Medusa IA evoluciona con el condominio, aprendiendo de cada interacción para preservar la cultura, acuerdos y seguridad del residencial.",
                             confidenceScore = 1.0f,
                             isUserAdded = false
                         )
@@ -282,22 +418,39 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
             val historyList = chatMessages.value.map { Pair(it.sender, it.content) }
             val memoryList = memoryNodes.value
 
-            // 3. Generate response from Gemini API
-            val result = geminiRepo.generateResponse(
+            // 3. Generate conversational response using the Google AI Client SDK (with Retrofit fallback)
+            val googleAiResult = googleAiRepo.generateConversationalResponse(
                 prompt = trimmed,
                 chatHistory = historyList,
                 memories = memoryList,
-                customApiKey = _customApiKey.value,
-                userRoleLabel = _userRole.value.label
+                userRoleLabel = _userRole.value.label,
+                customApiKey = _customApiKey.value
             )
+
+            val result = if (googleAiResult.isSuccess) {
+                googleAiResult
+            } else {
+                Log.w("MedusaViewModel", "Google AI Client fallback to Retrofit: ${googleAiResult.exceptionOrNull()?.message}")
+                geminiRepo.generateResponse(
+                    prompt = trimmed,
+                    chatHistory = historyList,
+                    memories = memoryList,
+                    customApiKey = _customApiKey.value,
+                    userRoleLabel = _userRole.value.label
+                )
+            }
 
             result.onSuccess { responseText ->
                 // Save AI response to Room
                 val aiMsg = ChatMessageEntity(sender = "MEDUSA", content = responseText)
                 chatDao.insertMessage(aiMsg)
 
-                // 4. Try automatic long-term memory extraction
-                val newMemoryNode = geminiRepo.extractMemoryNode(
+                // 4. Try automatic long-term memory extraction via Google AI Client SDK
+                val newMemoryNode = googleAiRepo.extractMemoryNode(
+                    userMessage = trimmed,
+                    aiResponse = responseText,
+                    customApiKey = _customApiKey.value
+                ) ?: geminiRepo.extractMemoryNode(
                     userMessage = trimmed,
                     aiResponse = responseText,
                     apiKey = _customApiKey.value
@@ -306,6 +459,12 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
                 if (newMemoryNode != null) {
                     memoryDao.insertMemory(newMemoryNode)
                     _lastLearnedMemory.value = newMemoryNode
+                    aiLearningRepo.saveLearningContext(
+                        key = newMemoryNode.title,
+                        value = newMemoryNode.detail,
+                        category = newMemoryNode.category,
+                        importance = (newMemoryNode.confidenceScore * 5).toInt().coerceIn(1, 5)
+                    )
                 }
 
             }.onFailure { error ->
@@ -402,9 +561,33 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
             )
             val newId = parcelRepository.insertParcel(parcel)
 
-            // Auto send notification via WhatsApp if context and phone provided
+            // Generate dedicated Security Delivery QR Pass in Room DB
+            val shortCode = UUID.randomUUID().toString().take(6).uppercase()
+            val pickupPassCode = "MEDUSA-PK-$newId-$shortCode"
+            val deliveryPass = AccessPassEntity(
+                passCode = pickupPassCode,
+                residentHouse = houseNumber.ifBlank { "Casa 01" },
+                residentName = recipientName.ifBlank { "Residente" },
+                visitorName = "Paquetería: $carrier",
+                accessType = "ENTREGA_PAQUETE",
+                validUntilTimestamp = System.currentTimeMillis() + (7 * 24 * 3600 * 1000L), // 7 days
+                isUsed = false,
+                createdByRole = _userRole.value.name
+            )
+            accessPassDao.insertPass(deliveryPass)
+
+            // Auto send notification via WhatsApp if context and phone provided with QR Contra-Entrega Token
             if (context != null && phone.isNotBlank()) {
-                sendWhatsAppNotice(context, newId, houseNumber, recipientName, carrier, description, phone)
+                sendWhatsAppNotice(
+                    context = context,
+                    parcelId = newId,
+                    houseNumber = houseNumber,
+                    recipientName = recipientName,
+                    carrier = carrier,
+                    description = description,
+                    phone = phone,
+                    pickupCode = pickupPassCode
+                )
             }
 
             _lastScanResult.value = null
@@ -418,22 +601,31 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
         recipientName: String,
         carrier: String,
         description: String,
-        phone: String
+        phone: String,
+        pickupCode: String? = null
     ) {
         val cleanPhone = phone.filter { it.isDigit() }
         val formattedPhone = if (cleanPhone.length == 10) "52$cleanPhone" else cleanPhone
+        val actualCode = pickupCode ?: "MEDUSA-PK-$parcelId-${houseNumber.replace(" ", "").take(4).uppercase()}"
 
         val message = """
             📦 *AVISO DE PAQUETERÍA - CASETA DE VIGILANCIA*
+            *SISTEMA MEDUSA ALFA - SEGURIDAD RESIDENCIAL*
             
             Hola *${recipientName.ifBlank { "Residente" }}* ($houseNumber),
             
-            Le informamos que ha llegado un paquete a caseta:
-            • *Empresa:* $carrier
-            • *Descripción:* $description
-            • *Estado:* Listo para recolección
+            Le informamos que ha llegado un paquete a caseta de seguridad:
+            • 🏢 *Empresa:* $carrier
+            • 📋 *Detalle:* $description
+            • ⏱️ *Estado:* Recibido en Caseta
             
-            _Notificado automáticamente por Sistema Medusa OS IA_
+            🔐 *TOKEN QR CONTRA-ENTREGA:*
+            👉 `$actualCode`
+            
+            ⚠️ *Protocolo de Seguridad:*
+            Muestre este código QR o proporcione este Token en caseta para verificar su identidad y autorizar la entrega de su paquete de forma segura.
+            
+            _Notificación automática generada por Sistema Medusa OS IA_
         """.trimIndent()
 
         try {
@@ -521,7 +713,16 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
             val isExpired = now > pass.validUntilTimestamp
             if (!isExpired && !pass.isUsed) {
                 accessPassDao.markPassAsUsed(pass.passCode)
-                Pair(true, "Acceso Autorizado por Room DB")
+                if (pass.accessType == "ENTREGA_PAQUETE") {
+                    // Automatically mark matching parcel as delivered
+                    val pendingParcel = parcels.value.find { it.houseNumber.equals(pass.residentHouse, ignoreCase = true) && it.status == "RECIBIDO" }
+                    if (pendingParcel != null) {
+                        parcelRepository.updateParcelStatus(pendingParcel.id, "ENTREGADO", pendingParcel.isNotified)
+                    }
+                    Pair(true, "📦 Entrega contra QR Autorizada (${pass.residentHouse} - ${pass.residentName})")
+                } else {
+                    Pair(true, "Acceso Autorizado por Room DB")
+                }
             } else if (isExpired) {
                 Pair(false, "Pase Expirado (${pass.accessType})")
             } else {
@@ -620,5 +821,70 @@ class MedusaViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             parcelRepository.deleteParcel(parcel)
         }
+    }
+
+    // --- FIREBASE AUTHENTICATION ACTIONS ---
+    fun signInWithEmail(email: String, pass: String) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            val result = authRepo.signInWithEmail(email, pass)
+            result.onFailure {
+                _authError.value = it.localizedMessage ?: "Error al iniciar sesión"
+            }
+            _isAuthLoading.value = false
+        }
+    }
+
+    fun registerUserWithEmail(
+        email: String,
+        pass: String,
+        displayName: String,
+        role: UserRole,
+        houseNumber: Int?
+    ) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            val result = authRepo.registerUser(email, pass, displayName, role, houseNumber)
+            result.onFailure {
+                _authError.value = it.localizedMessage ?: "Error al registrar usuario"
+            }
+            _isAuthLoading.value = false
+        }
+    }
+
+    fun signInWithCredential(credential: AuthCredential) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            val result = authRepo.signInWithCredential(credential)
+            result.onFailure {
+                _authError.value = it.localizedMessage ?: "Error con credencial de Google"
+            }
+            _isAuthLoading.value = false
+        }
+    }
+
+    fun signOutFirebase() {
+        viewModelScope.launch {
+            authRepo.signOut()
+            _authUserProfile.value = null
+            _userRole.value = UserRole.RESIDENTES
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch {
+            _authError.value = null
+            val result = authRepo.sendPasswordReset(email)
+            result.onFailure {
+                _authError.value = it.localizedMessage ?: "No se pudo enviar correo de recuperación"
+            }
+        }
+    }
+
+    fun clearAuthError() {
+        _authError.value = null
     }
 }

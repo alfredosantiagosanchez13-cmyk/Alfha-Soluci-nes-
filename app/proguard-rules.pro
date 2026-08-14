@@ -1,21 +1,75 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ============================================================================
+# ProGuard / R8 Rules for Android Security & Size Optimization
+# ============================================================================
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preserve line numbers and source file attributes for stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve annotations, signatures, and inner classes for reflection & serialization
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep custom Application and Activity entry points
+-keep public class * extends android.app.Application
+-keep public class * extends android.app.Activity
+
+# Keep ViewModel classes and their public constructors
+-keepclassmembers class * extends androidx.lifecycle.ViewModel {
+    public <init>(...);
+}
+
+# ============================================================================
+# Jetpack Compose & Material 3 Rules
+# ============================================================================
+-keep class androidx.compose.material3.** { *; }
+-keep class androidx.compose.ui.** { *; }
+
+# ============================================================================
+# Kotlin Coroutines
+# ============================================================================
+-keepclassmembers class kotlinx.coroutines.** { *; }
+-dontwarn kotlinx.coroutines.**
+
+# ============================================================================
+# Room Database
+# ============================================================================
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.paging.**
+-keepclassmembers class * {
+    @androidx.room.* *;
+}
+
+# ============================================================================
+# Moshi & Retrofit / OkHttp Networking Rules
+# ============================================================================
+-keep class com.squareup.moshi.** { *; }
+-keepclassmembers class * {
+    @com.squareup.moshi.* *;
+}
+-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+
+# ============================================================================
+# Firebase Rules
+# ============================================================================
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# ============================================================================
+# Application Data Models and Entities
+# Keep all data models in com.example domain from obfuscation/removal
+# ============================================================================
+-keep class com.example.data.** { *; }
+-keep class com.example.model.** { *; }
+-keep class com.alfredo.medusaalfha.** { *; }
+-keep class net.sqlcipher.** { *; }
+-dontwarn net.sqlcipher.**
+-keep class androidx.security.crypto.** { *; }
+-keep @androidx.annotation.Keep class * { *; }
+-keepclassmembers class * {
+    @androidx.annotation.Keep *;
+}

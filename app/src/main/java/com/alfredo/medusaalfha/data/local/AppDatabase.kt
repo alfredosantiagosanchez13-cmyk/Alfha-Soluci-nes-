@@ -1,14 +1,23 @@
-package com.example.data.db
+package com.alfredo.medusaalfha.data.local
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.alfredo.medusaalfha.data.local.ConversationDao
-import com.alfredo.medusaalfha.data.local.ConversationEntity
-import com.alfredo.medusaalfha.data.local.MessageDao
-import com.alfredo.medusaalfha.data.local.MessageEntity
-import com.alfredo.medusaalfha.data.local.SecureKeyManager
+import com.example.data.db.AccessLogDao
+import com.example.data.db.AccessLogEntity
+import com.example.data.db.AccessPassDao
+import com.example.data.db.AccessPassEntity
+import com.example.data.db.ChatMessageDao
+import com.example.data.db.ChatMessageEntity
+import com.example.data.db.InteractionDao
+import com.example.data.db.InteractionEntity
+import com.example.data.db.MemoryDao
+import com.example.data.db.MemoryEntity
+import com.example.data.db.MemoryNodeDao
+import com.example.data.db.MemoryNodeEntity
+import com.example.data.db.ParcelDao
+import com.example.data.db.ParcelEntity
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 
@@ -27,7 +36,7 @@ import net.sqlcipher.database.SupportFactory
     version = 6,
     exportSchema = false
 )
-abstract class MedusaDatabase : RoomDatabase() {
+abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun conversationDao(): ConversationDao
     abstract fun messageDao(): MessageDao
@@ -40,41 +49,29 @@ abstract class MedusaDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var INSTANCE: MedusaDatabase? = null
+        private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context): MedusaDatabase {
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
-            }
-        }
-
-        private fun buildDatabase(context: Context): MedusaDatabase {
-            val appContext = context.applicationContext
-            return try {
                 try {
                     System.loadLibrary("sqlcipher")
                 } catch (_: UnsatisfiedLinkError) {
-                    SQLiteDatabase.loadLibs(appContext)
+                    SQLiteDatabase.loadLibs(context)
                 }
 
-                val factory = SecureKeyManager.getSupportFactory(appContext)
-                Room.databaseBuilder(
-                    appContext,
-                    MedusaDatabase::class.java,
+                val factory = SecureKeyManager.getSupportFactory(context)
+
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
                     "medusa_alfha_encrypted.db"
                 )
                 .openHelperFactory(factory)
                 .fallbackToDestructiveMigration()
                 .build()
-            } catch (e: Throwable) {
-                android.util.Log.e("MedusaDatabase", "Fallback to unencrypted Room due to initialization notice: ${e.message}")
-                Room.databaseBuilder(
-                    appContext,
-                    MedusaDatabase::class.java,
-                    "medusa_alfha_fallback.db"
-                )
-                .fallbackToDestructiveMigration()
-                .build()
+
+                INSTANCE = instance
+                instance
             }
         }
     }

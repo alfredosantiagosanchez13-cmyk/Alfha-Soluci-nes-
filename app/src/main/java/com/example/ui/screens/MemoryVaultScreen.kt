@@ -82,7 +82,7 @@ fun MemoryVaultScreen(
     var selectedCategory by remember { mutableStateOf("ALL") }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val categories = listOf("ALL", "PREFERENCE", "DIRECTIVE", "SECURITY", "FACT")
+    val categories = listOf("ALL", "COMMUNITY", "AMENITY", "PREFERENCE", "DIRECTIVE", "SECURITY", "FACT")
 
     val filteredMemories = remember(memories, searchQuery, selectedCategory) {
         memories.filter { node ->
@@ -331,7 +331,7 @@ fun AddMemoryDialog(
     var category by remember { mutableStateOf("PREFERENCE") }
     var expanded by remember { mutableStateOf(false) }
 
-    val categories = listOf("PREFERENCE", "DIRECTIVE", "SECURITY", "FACT")
+    val categories = listOf("COMMUNITY", "AMENITY", "PREFERENCE", "DIRECTIVE", "SECURITY", "FACT")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -352,10 +352,12 @@ fun AddMemoryDialog(
                 ) {
                     OutlinedTextField(
                         value = when (category) {
-                            "PREFERENCE" -> "Preferencia"
-                            "DIRECTIVE" -> "Directiva"
-                            "SECURITY" -> "Seguridad"
-                            else -> "Hecho"
+                            "COMMUNITY" -> "🏡 Esencia Condominio"
+                            "AMENITY" -> "🌿 Amenidades y Convivencia"
+                            "PREFERENCE" -> "✨ Preferencia Residente"
+                            "DIRECTIVE" -> "🛡️ Directiva y Reglas"
+                            "SECURITY" -> "🔒 Seguridad y Caseta"
+                            else -> "👁️ Hecho / Información"
                         },
                         onValueChange = {},
                         readOnly = true,
@@ -381,10 +383,12 @@ fun AddMemoryDialog(
                                 text = {
                                     Text(
                                         text = when (cat) {
-                                            "PREFERENCE" -> "Preferencia"
-                                            "DIRECTIVE" -> "Directiva"
-                                            "SECURITY" -> "Seguridad"
-                                            else -> "Hecho"
+                                            "COMMUNITY" -> "🏡 Esencia Condominio"
+                                            "AMENITY" -> "🌿 Amenidades y Convivencia"
+                                            "PREFERENCE" -> "✨ Preferencia Residente"
+                                            "DIRECTIVE" -> "🛡️ Directiva y Reglas"
+                                            "SECURITY" -> "🔒 Seguridad y Caseta"
+                                            else -> "👁️ Hecho / Información"
                                         },
                                         color = SleekTextPrimary
                                     )

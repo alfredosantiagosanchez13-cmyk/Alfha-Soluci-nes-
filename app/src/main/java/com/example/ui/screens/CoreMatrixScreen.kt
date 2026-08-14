@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +20,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -31,9 +34,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +56,7 @@ import com.example.ui.UserRole
 import com.example.ui.components.AdminResidentManagerCard
 import com.example.ui.components.AlphaRootCommandCard
 import com.example.ui.components.ApkInstallerGuideCard
+import com.example.ui.components.FuturisticHandsFreeVoiceDialog
 import com.example.ui.components.GuardAccessConsoleCard
 import com.example.ui.components.MemoryNodeCard
 import com.example.ui.components.MetricsGridCard
@@ -53,15 +64,18 @@ import com.example.ui.components.MonthlyAccessDashboardCard
 import com.example.ui.components.ResidentQrGeneratorCard
 import com.example.ui.components.SynapticAlignmentCard
 import com.example.ui.components.WorkManagerNotificationStatusCard
-import com.example.worker.QrScanNotificationWorker
 import com.example.ui.theme.SleekBackground
 import com.example.ui.theme.SleekBorder
+import com.example.ui.theme.SleekBorderSubtle
 import com.example.ui.theme.SleekSurface
+import com.example.ui.theme.SleekSurfaceVariant
 import com.example.ui.theme.SleekTextMuted
 import com.example.ui.theme.SleekTextPrimary
 import com.example.ui.theme.SleekTextSecondary
 import com.example.ui.theme.SleekVioletDark
 import com.example.ui.theme.SleekVioletPrimary
+import com.example.ui.voice.VoiceRecognitionManager
+import com.example.worker.QrScanNotificationWorker
 
 @Composable
 fun CoreMatrixScreen(
@@ -83,8 +97,12 @@ fun CoreMatrixScreen(
     onNavigateToVault: () -> Unit,
     onNavigateToParcel: () -> Unit,
     onTriggerTestNotification: () -> Unit = {},
+    onSendVoiceMessage: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var showVoiceDialog by remember { mutableStateOf(false) }
+    val voiceManager = remember { VoiceRecognitionManager(context) }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -122,6 +140,76 @@ fun CoreMatrixScreen(
                         onValidateCode = onValidatePassCode,
                         onNavigateToParcelScanner = onNavigateToParcel
                     )
+                }
+            }
+        }
+
+        // Voice Command Action Pill Card
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(SleekSurfaceVariant, SleekVioletDark)
+                        )
+                    )
+                    .border(1.dp, SleekVioletPrimary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                    .clickable { showVoiceDialog = true }
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(SleekVioletPrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Comando de Voz",
+                                tint = SleekVioletDark,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "INTERFAZ VOCAL MANOS LIBRES",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SleekTextPrimary
+                            )
+                            Text(
+                                text = "Toca para dictar preguntas, registros o instrucciones",
+                                fontSize = 11.sp,
+                                color = SleekTextSecondary
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SleekVioletPrimary.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "HABLAR",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekVioletPrimary
+                        )
+                    }
                 }
             }
         }
@@ -322,5 +410,16 @@ fun CoreMatrixScreen(
                 }
             }
         }
+    }
+
+    if (showVoiceDialog) {
+        FuturisticHandsFreeVoiceDialog(
+            voiceManager = voiceManager,
+            onSendMessage = { spokenText ->
+                onSendVoiceMessage(spokenText)
+                onNavigateToChat()
+            },
+            onDismiss = { showVoiceDialog = false }
+        )
     }
 }

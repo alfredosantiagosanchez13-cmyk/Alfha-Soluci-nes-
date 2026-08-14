@@ -56,6 +56,7 @@ import com.example.ui.theme.SleekSurfaceVariant
 import com.example.ui.theme.SleekTextMuted
 import com.example.ui.theme.SleekTextPrimary
 import com.example.ui.theme.SleekTextSecondary
+import com.example.util.PermissionManager
 
 @Composable
 fun WorkManagerNotificationStatusCard(
@@ -65,14 +66,7 @@ fun WorkManagerNotificationStatusCard(
     val context = LocalContext.current
 
     var hasNotificationPermission by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-            } else true
-        )
+        mutableStateOf(PermissionManager.hasNotificationPermission(context))
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(

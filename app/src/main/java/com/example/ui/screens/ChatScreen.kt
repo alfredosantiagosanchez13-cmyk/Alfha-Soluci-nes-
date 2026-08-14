@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,7 +39,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.ui.components.FuturisticHandsFreeVoiceDialog
+import com.example.ui.components.FuturisticPulsingIndicator
+import com.example.ui.components.VoiceInputMicButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
@@ -65,6 +71,8 @@ import com.example.ui.theme.SleekTextSecondary
 import com.example.ui.theme.SleekVioletContainer
 import com.example.ui.theme.SleekVioletDark
 import com.example.ui.theme.SleekVioletPrimary
+import com.example.ui.voice.VoiceRecognitionManager
+import com.example.ui.voice.VoiceState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -78,8 +86,22 @@ fun ChatScreen(
     onClearChat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    val voiceManager = remember { VoiceRecognitionManager(context) }
+    var showHandsFreeDialog by remember { mutableStateOf(false) }
+
+    val liveVoiceText by voiceManager.liveTranscribedText.collectAsState()
+    val voiceState by voiceManager.voiceState.collectAsState()
+
+    // Sync live partial speech to input box when talking in inline mode
+    LaunchedEffect(liveVoiceText) {
+        if (liveVoiceText.isNotBlank() && !showHandsFreeDialog) {
+            inputText = liveVoiceText
+        }
+    }
 
     // Scroll to bottom when messages update
     LaunchedEffect(messages.size, isGenerating) {
@@ -89,9 +111,10 @@ fun ChatScreen(
     }
 
     val samplePrompts = listOf(
-        "¿Qué recuerdas en tu memoria a largo plazo?",
-        "Guarda que prefiero respuestas en formato lista",
-        "Resume las directivas activas de Medusa OS"
+        "¿Cuál es la esencia y normas del residencial?",
+        "¿Cuáles son los horarios de amenidades y silencio?",
+        "Guarda que en Casa 01 mi perrito se llama Toby",
+        "¿Qué directivas y memorias tienes registradas?"
     )
 
     Column(
@@ -123,19 +146,47 @@ fun ChatScreen(
                 )
             }
 
-            if (messages.isNotEmpty()) {
-                IconButton(
-                    onClick = onClearChat,
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Hands-Free Trigger Button
+                Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .semantics { testTag = "clear_chat_button" }
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SleekVioletDark)
+                        .border(1.dp, SleekVioletPrimary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .clickable { showHandsFreeDialog = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Limpiar Historial",
-                        tint = SleekTextMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Modo Manos Libres",
+                            tint = SleekVioletPrimary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Voz IA",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekVioletPrimary
+                        )
+                    }
+                }
+
+                if (messages.isNotEmpty()) {
+                    IconButton(
+                        onClick = onClearChat,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .semantics { testTag = "clear_chat_button" }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Limpiar Historial",
+                            tint = SleekTextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -197,33 +248,9 @@ fun ChatScreen(
 
             if (isGenerating) {
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(SleekVioletDark),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = SleekVioletPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Consultando historial neural y generando respuesta...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 12.sp,
-                            color = SleekVioletPrimary
-                        )
-                    }
+                    FuturisticPulsingIndicator(
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                 }
             }
         }
@@ -300,7 +327,22 @@ fun ChatScreen(
                     maxLines = 3
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Voice-to-Text Microphone Button
+                VoiceInputMicButton(
+                    voiceManager = voiceManager,
+                    onSpeechResult = { recognizedText ->
+                        inputText = recognizedText
+                        if (recognizedText.isNotBlank() && voiceManager.isHandsFreeAutoSendEnabled.value) {
+                            inputText = ""
+                            onSendMessage(recognizedText)
+                        }
+                    },
+                    onOpenFullHandsFree = { showHandsFreeDialog = true }
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
 
                 IconButton(
                     onClick = {
@@ -323,6 +365,18 @@ fun ChatScreen(
                     )
                 }
             }
+        }
+
+        // Fullscreen / Modal Voice Interaction Matrix
+        if (showHandsFreeDialog) {
+            FuturisticHandsFreeVoiceDialog(
+                voiceManager = voiceManager,
+                onSendMessage = { spokenText ->
+                    inputText = ""
+                    onSendMessage(spokenText)
+                },
+                onDismiss = { showHandsFreeDialog = false }
+            )
         }
     }
 }

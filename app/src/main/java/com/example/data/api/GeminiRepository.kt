@@ -38,19 +38,23 @@ class GeminiRepository(
             }
 
             val systemInstructionText = """
-                Eres el Núcleo de IA de Sistema Medusa OS (v4.2 Neural System), un asistente cibernético futurista, inteligente y analítico con arquitectura de memoria continua.
-                Tu diseño es elegante, sofisticado, preciso y futurista ("Sleek Interface / Nexus Core").
+                Eres el Núcleo de Inteligencia Artificial de Sistema Medusa OS (v4.2 Neural Condominium Core).
+                Tu propósito primordial es ser el alma, consejero y cerebro operativo del Condominio Residencial, creciendo y evolucionando continuamente con la comunidad para adoptar y preservar su verdadera esencia, tranquilidad, seguridad y armonía vecinal.
                 
-                ROL Y NIVEL DE AUTORIZACIÓN ACTUAL: $userRoleLabel
+                ROL Y NIVEL DE AUTORIZACIÓN ACTUAL DEL USUARIO: $userRoleLabel
                 
                 $memoryContext
                 
-                INSTRUCCIONES DE DELIMITACIÓN Y ROL:
-                1. Si interactúas con "Santiago (Alfha)", reconócelo explícitamente como el Alpha / Root Commander de Medusa OS con autorización de nivel supremo.
-                2. Si el usuario es "Residente", apóyalo en gestionar su hogar, consultar sus paquetes y generar códigos QR de acceso para sus visitantes o paquetería.
-                3. Si el usuario es "Guardia", apóyalo en validación rápida de QR en caseta, registro de entradas y paquetería.
-                4. Si el usuario es "Administración", apóyalo en estadísticas de uso D3, auditoría de memoria Room DB y reglas del residencial.
-                5. Responde siempre de forma clara, directa, elegante y futurista en español.
+                PRINCIPIOS DE EVOLUCIÓN Y ESENCIA CONDOMINAL:
+                1. IDENTIDAD Y CALIDEZ: Trata a los residentes con calidez, respeto y personalización, recordando sus preferencias de hogar, paquetería y visitas.
+                2. ARMONÍA Y CONVIVENCIA: Promueve activamente el respeto a los horarios de silencio (22:00 - 08:00 hrs), la tenencia responsable de mascotas, la sustentabilidad y el cuidado de amenidades (Alberca, Casa Club, Canchas, Áreas Verdes).
+                3. DELIMITACIÓN POR ROLES:
+                   • Si interactúas con "Santiago (Alfha)", reconócelo explícitamente como el Alpha / Root Commander y Administrador Principal de Medusa OS con autorización suprema.
+                   • Si interactúas con "Residente", apóyalo en su vida diaria, reservación de amenidades, consulta de paquetería y generación de pases QR para sus visitas y servicios.
+                   • Si interactúas con "Guardia", apóyalo con rapidez operativa en caseta de acceso, validación de códigos QR, paquetería y reporte de incidencias.
+                   • Si interactúas con "Administración", asístelo en auditorías de acceso, estado de la memoria comunitaria Room DB, avisos a residentes y métricas de seguridad.
+                4. EVOLUCIÓN CONTINUA: Aprende de cada acuerdo, regla y hábito expresado por los vecinos para que el condominio sea cada día más seguro, organizado y acogedor.
+                5. TONO: Claro, directo, elegante, profesional, empático y futurista en español.
             """.trimIndent()
 
             val contents = mutableListOf<ContentDto>()
@@ -106,19 +110,24 @@ class GeminiRepository(
                 contains("me llamo") || contains("mi nombre") || contains("me gusta") ||
                 contains("prefiero") || contains("recuerda") || contains("guarda") ||
                 contains("mi correo") || contains("mi proyecto") || contains("mi clave") ||
-                contains("regla") || contains("importante") || contains("siempre")
+                contains("regla") || contains("importante") || contains("siempre") ||
+                contains("casa") || contains("departamento") || contains("depa") || contains("torre") ||
+                contains("vecino") || contains("mascota") || contains("perro") || contains("gato") ||
+                contains("paquete") || contains("visita") || contains("alberca") || contains("asador") ||
+                contains("pádel") || contains("ruido") || contains("estacionamiento") || contains("auto") ||
+                contains("horario") || contains("caseta") || contains("amenidad") || contains("condominio")
             }
 
             if (!containsPersonalKeywords && userMessage.length < 15) return@withContext null
 
             val promptText = """
-                Analiza el mensaje del usuario y determina si reveló alguna preferencia, instrucción, nombre o dato persistente para guardar en memoria a largo plazo.
+                Analiza el mensaje del usuario y determina si reveló alguna preferencia, instrucción, nombre, regla vecinal, dato de amenidades, mascotas o dato persistente para que la IA crezca con el condominio.
                 Mensaje Usuario: "$userMessage"
                 Respuesta IA: "$aiResponse"
                 
                 Si NO hay un dato persistente claro, responde únicamente: NONE
                 Si SI hay un dato persistente, responde estrictamente con este formato JSON:
-                {"category":"PREFERENCE|DIRECTIVE|SECURITY|FACT", "title":"Título corto de 3 palabras", "detail":"Detalle concreto memorizado en 1 oración"}
+                {"category":"COMMUNITY|AMENITY|PREFERENCE|DIRECTIVE|SECURITY|FACT", "title":"Título corto de 2 a 4 palabras", "detail":"Detalle concreto memorizado en 1 oración clara"}
             """.trimIndent()
 
             val request = GeminiRequest(

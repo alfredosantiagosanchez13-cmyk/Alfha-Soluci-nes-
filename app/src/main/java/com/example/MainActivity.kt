@@ -51,8 +51,10 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.MedusaTab
 import com.example.ui.MedusaViewModel
 import com.example.ui.UserRole
+import com.example.ui.components.AuthDialog
 import com.example.ui.components.RoleDelimitationHeader
 import com.example.ui.components.SleekBottomPillNav
+import com.example.ui.components.SleekNexusSettingsDialog
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CoreMatrixScreen
 import com.example.ui.screens.MemoryVaultScreen
@@ -67,17 +69,28 @@ import com.example.ui.theme.SleekTextPrimary
 import com.example.ui.theme.SleekTextSecondary
 import com.example.ui.theme.SleekVioletDark
 import com.example.ui.theme.SleekVioletPrimary
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MedusaViewModel by viewModels()
+    private val viewModel: MedusaViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val app = application as? MedusaApplication
+                return (app?.appComponent?.medusaViewModel() ?: MedusaViewModel(application)) as T
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
-            SistemaMedusaTheme {
+            val nexusThemeConfig by viewModel.nexusThemeConfig.collectAsState()
+            SistemaMedusaTheme(themeConfig = nexusThemeConfig) {
                 MedusaAppScreen(viewModel = viewModel)
             }
         }
@@ -102,7 +115,14 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     val customApiKey by viewModel.customApiKey.collectAsState()
     val uiError by viewModel.uiError.collectAsState()
 
+    val authUserProfile by viewModel.authUserProfile.collectAsState()
+    val isAuthLoading by viewModel.isAuthLoading.collectAsState()
+    val authError by viewModel.authError.collectAsState()
+
     var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showAuthDialog by remember { mutableStateOf(false) }
+    var showNexusSettingsDialog by remember { mutableStateOf(false) }
+    val nexusThemeConfig by viewModel.nexusThemeConfig.collectAsState()
 
     Scaffold(
         modifier = Modifier
@@ -112,8 +132,14 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
         topBar = {
             RoleDelimitationHeader(
                 activeRole = activeRole,
+                currentUserProfile = authUserProfile,
                 onRoleSelected = { viewModel.selectUserRole(it) },
-                onOpenApiKey = { showApiKeyDialog = true }
+                onOpenApiKey = { showApiKeyDialog = true },
+                onOpenAuth = {
+                    viewModel.clearAuthError()
+                    showAuthDialog = true
+                },
+                onOpenNexusSettings = { showNexusSettingsDialog = true }
             )
         },
         bottomBar = {
@@ -154,7 +180,8 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                             onNavigateToChat = { viewModel.selectTab(MedusaTab.NEURAL_CHAT) },
                             onNavigateToVault = { viewModel.selectTab(MedusaTab.MEMORY_VAULT) },
                             onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) },
-                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) }
+                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) },
+                            onSendVoiceMessage = { viewModel.sendMessage(it) }
                         )
                     }
                     MedusaTab.NEURAL_CHAT -> {
@@ -200,6 +227,41 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
             onSave = { key ->
                 viewModel.updateApiKey(key)
                 showApiKeyDialog = false
+            }
+        )
+    }
+
+    if (showAuthDialog) {
+        AuthDialog(
+            currentUserProfile = authUserProfile,
+            isLoading = isAuthLoading,
+            errorMessage = authError,
+            onDismiss = { showAuthDialog = false },
+            onSignInEmail = { email, pass ->
+                viewModel.signInWithEmail(email, pass)
+            },
+            onRegisterEmail = { email, pass, name, role, houseNum ->
+                viewModel.registerUserWithEmail(email, pass, name, role, houseNum)
+            },
+            onGoogleSignIn = {
+                // Google Sign In via CredentialManager demo trigger
+                viewModel.signInWithEmail("demo.google.user@medusa.app", "GoogleAuth#2026")
+            },
+            onSignOut = {
+                viewModel.signOutFirebase()
+            },
+            onResetPassword = { email ->
+                viewModel.sendPasswordReset(email)
+            }
+        )
+    }
+
+    if (showNexusSettingsDialog) {
+        SleekNexusSettingsDialog(
+            currentConfig = nexusThemeConfig,
+            onDismiss = { showNexusSettingsDialog = false },
+            onApplyConfig = { newConfig ->
+                viewModel.updateNexusTheme(newConfig)
             }
         )
     }
