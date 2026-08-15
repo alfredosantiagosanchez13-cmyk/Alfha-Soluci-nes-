@@ -20,11 +20,13 @@ import net.sqlcipher.database.SupportFactory
         MemoryNodeEntity::class,
         ParcelEntity::class,
         MemoryEntity::class,
+        MemoryEntry::class,
         InteractionEntity::class,
         AccessPassEntity::class,
-        AccessLogEntity::class
+        AccessLogEntity::class,
+        SmartDeviceEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 abstract class MedusaDatabase : RoomDatabase() {
@@ -34,9 +36,11 @@ abstract class MedusaDatabase : RoomDatabase() {
     abstract fun memoryNodeDao(): MemoryNodeDao
     abstract fun parcelDao(): ParcelDao
     abstract fun memoryDao(): MemoryDao
+    abstract fun memoryEntryDao(): MemoryEntryDao
     abstract fun interactionDao(): InteractionDao
     abstract fun accessPassDao(): AccessPassDao
     abstract fun accessLogDao(): AccessLogDao
+    abstract fun smartDeviceDao(): SmartDeviceDao
 
     companion object {
         @Volatile

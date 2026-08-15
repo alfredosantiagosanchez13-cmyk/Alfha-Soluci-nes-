@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
@@ -427,10 +428,10 @@ fun SleekBottomPillNav(
     onTabSelected: (MedusaTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+        Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         color = Color.Transparent
     ) {
         Row(
@@ -439,13 +440,14 @@ fun SleekBottomPillNav(
                 .clip(RoundedCornerShape(32.dp))
                 .background(SleekSurfaceVariant)
                 .border(1.dp, SleekBorder, RoundedCornerShape(32.dp))
-                .padding(6.dp),
+                .padding(4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             val tabs = listOf(
                 Triple(MedusaTab.CORE_MATRIX, "Matriz", Icons.Default.Psychology),
                 Triple(MedusaTab.NEURAL_CHAT, "IA", Icons.Default.AutoAwesome),
+                Triple(MedusaTab.SMART_HOME, "Hogar", Icons.Default.Sensors),
                 Triple(MedusaTab.QR_SCANNER, "Escáner", Icons.Default.QrCodeScanner),
                 Triple(MedusaTab.SMART_PARCEL, "Paquetes", Icons.Default.Inventory2),
                 Triple(MedusaTab.MEMORY_VAULT, "Bóveda", Icons.Default.Memory)
@@ -458,7 +460,7 @@ fun SleekBottomPillNav(
                         .clip(RoundedCornerShape(24.dp))
                         .background(if (selected) SleekVioletPrimary else Color.Transparent)
                         .clickable { onTabSelected(tab) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(horizontal = if (selected) 12.dp else 8.dp, vertical = 8.dp)
                         .semantics {
                             testTag = "nav_tab_${tab.name.lowercase()}"
                             contentDescription = label
@@ -470,14 +472,14 @@ fun SleekBottomPillNav(
                         imageVector = icon,
                         contentDescription = null,
                         tint = if (selected) SleekVioletDark else SleekTextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                     if (selected) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = label,
                             style = MaterialTheme.typography.titleMedium,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = SleekVioletDark
                         )

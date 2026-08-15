@@ -59,6 +59,7 @@ import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CoreMatrixScreen
 import com.example.ui.screens.MemoryVaultScreen
 import com.example.ui.screens.QrScannerScreen
+import com.example.ui.screens.SmartHomeScreen
 import com.example.ui.screens.SmartParcelScreen
 import com.example.ui.theme.SistemaMedusaTheme
 import com.example.ui.theme.SleekBackground
@@ -71,6 +72,11 @@ import com.example.ui.theme.SleekVioletDark
 import com.example.ui.theme.SleekVioletPrimary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -88,11 +94,35 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Initialize Firebase App Check with Play Integrity protection
+        initFirebaseAppCheck()
+
         setContent {
             val nexusThemeConfig by viewModel.nexusThemeConfig.collectAsState()
             SistemaMedusaTheme(themeConfig = nexusThemeConfig) {
                 MedusaAppScreen(viewModel = viewModel)
             }
+        }
+    }
+
+    private fun initFirebaseAppCheck() {
+        try {
+            // Ensure FirebaseApp is ready
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                FirebaseApp.initializeApp(this)
+            }
+
+            val firebaseAppCheck = FirebaseAppCheck.getInstance()
+            val providerFactory = if (BuildConfig.DEBUG) {
+                DebugAppCheckProviderFactory.getInstance()
+            } else {
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            }
+
+            firebaseAppCheck.installAppCheckProviderFactory(providerFactory)
+            Log.d("MainActivity", "Firebase App Check initialized successfully (Play Integrity / Debug provider: ${BuildConfig.DEBUG})")
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Firebase App Check initialization notice: ${e.message}")
         }
     }
 }
@@ -107,6 +137,7 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     val memoryNodes by viewModel.memoryNodes.collectAsState()
     val accessPasses by viewModel.accessPasses.collectAsState()
     val accessLogs by viewModel.accessLogs.collectAsState()
+    val smartDevices by viewModel.smartDevices.collectAsState()
     val messageCount by viewModel.messageCount.collectAsState()
     val memoryCount by viewModel.memoryCount.collectAsState()
     val isGenerating by viewModel.isGenerating.collectAsState()
@@ -114,6 +145,8 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     val lastLearnedMemory by viewModel.lastLearnedMemory.collectAsState()
     val customApiKey by viewModel.customApiKey.collectAsState()
     val uiError by viewModel.uiError.collectAsState()
+    val isSpeakingAi by viewModel.isSpeakingAi.collectAsState()
+    val isVoiceOutputEnabled by viewModel.isVoiceOutputEnabled.collectAsState()
 
     val authUserProfile by viewModel.authUserProfile.collectAsState()
     val isAuthLoading by viewModel.isAuthLoading.collectAsState()
@@ -180,6 +213,10 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                             onNavigateToChat = { viewModel.selectTab(MedusaTab.NEURAL_CHAT) },
                             onNavigateToVault = { viewModel.selectTab(MedusaTab.MEMORY_VAULT) },
                             onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) },
+                            onNavigateToSmartHome = { viewModel.selectTab(MedusaTab.SMART_HOME) },
+                            smartDevices = smartDevices,
+                            onApplyPreset = { viewModel.applyIotPreset(it) },
+                            onToggleMasterPower = { viewModel.setMasterPowerAll(it) },
                             onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) },
                             onSendVoiceMessage = { viewModel.sendMessage(it) }
                         )
@@ -189,8 +226,16 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                             messages = chatMessages,
                             isGenerating = isGenerating,
                             onSendMessage = { viewModel.sendMessage(it) },
-                            onClearChat = { viewModel.clearChatHistory() }
+                            onClearChat = { viewModel.clearChatHistory() },
+                            isVoiceOutputEnabled = isVoiceOutputEnabled,
+                            isSpeakingAi = isSpeakingAi,
+                            onToggleVoiceOutput = { viewModel.toggleVoiceOutput() },
+                            onSpeakMessage = { viewModel.speakText(it) },
+                            onStopSpeaking = { viewModel.stopSpeaking() }
                         )
+                    }
+                    MedusaTab.SMART_HOME -> {
+                        SmartHomeScreen(viewModel = viewModel)
                     }
                     MedusaTab.QR_SCANNER -> {
                         QrScannerScreen(

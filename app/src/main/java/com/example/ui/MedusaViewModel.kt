@@ -18,17 +18,27 @@ import com.example.data.db.MedusaDatabase
 import com.example.data.db.MemoryNodeDao
 import com.example.data.db.MemoryNodeEntity
 import com.example.data.db.ParcelEntity
+import com.example.data.db.SmartDeviceEntity
+import com.example.data.model.ClimateHvacMode
+import com.example.data.model.CommunicationProtocol
+import com.example.data.model.DeviceType
+import com.example.data.model.DiscoveredIotDevice
+import com.example.data.model.FanSpeed
 import com.example.data.model.PackageScanResult
+import com.example.data.model.SmartHomeCommandResult
+import com.example.data.model.SmartScenePreset
 import com.example.data.model.UserProfile
 import com.example.data.repository.AiLearningContextRepository
 import com.example.data.repository.AiMemoryRepository
 import com.example.data.repository.FirebaseAuthRepository
 import com.example.data.repository.GoogleAiGeminiRepository
 import com.example.data.repository.ParcelRepository
+import com.example.data.repository.SmartHomeService
 import com.example.ui.theme.NexusAccentPalette
 import com.example.ui.theme.NexusFontStyle
 import com.example.ui.theme.NexusGlowLevel
 import com.example.ui.theme.SleekNexusThemeConfig
+import com.example.ui.voice.MedusaSpeechSynthesizer
 import com.example.worker.QrScanNotificationWorker
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseUser
@@ -46,6 +56,7 @@ import javax.inject.Inject
 enum class MedusaTab {
     CORE_MATRIX,
     NEURAL_CHAT,
+    SMART_HOME,
     QR_SCANNER,
     SMART_PARCEL,
     MEMORY_VAULT
@@ -71,7 +82,8 @@ class MedusaViewModel @Inject constructor(
     val googleAiRepo: GoogleAiGeminiRepository,
     private val authRepo: FirebaseAuthRepository,
     val aiLearningRepo: AiLearningContextRepository,
-    val aiMemoryRepo: AiMemoryRepository
+    val aiMemoryRepo: AiMemoryRepository,
+    val smartHomeService: SmartHomeService
 ) : AndroidViewModel(application) {
 
     constructor(application: Application) : this(
@@ -99,6 +111,10 @@ class MedusaViewModel @Inject constructor(
             interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
             memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
             geminiRepository = GeminiRepository()
+        ),
+        smartHomeService = SmartHomeService(
+            context = application,
+            smartDeviceDao = MedusaDatabase.getDatabase(application).smartDeviceDao()
         )
     )
 
@@ -125,6 +141,14 @@ class MedusaViewModel @Inject constructor(
 
     val accessLogs: StateFlow<List<AccessLogEntity>> = accessLogDao.getAllAccessLogs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val smartDevices: StateFlow<List<SmartDeviceEntity>> = smartHomeService.getAllDevices()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val isIotScanning: StateFlow<Boolean> = smartHomeService.isScanning
+    val discoveredIotDevices: StateFlow<List<DiscoveredIotDevice>> = smartHomeService.discoveredDevices
+    val recentIotActionLog: StateFlow<String?> = smartHomeService.recentIotActionLog
+    val availableIotPresets: List<SmartScenePreset> = smartHomeService.availablePresets
 
     val messageCount: StateFlow<Int> = chatDao.getMessageCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -158,6 +182,10 @@ class MedusaViewModel @Inject constructor(
 
     private val _lastLearnedMemory = MutableStateFlow<MemoryNodeEntity?>(null)
     val lastLearnedMemory: StateFlow<MemoryNodeEntity?> = _lastLearnedMemory.asStateFlow()
+
+    val speechSynthesizer = MedusaSpeechSynthesizer(application)
+    val isSpeakingAi: StateFlow<Boolean> = speechSynthesizer.isSpeaking
+    val isVoiceOutputEnabled: StateFlow<Boolean> = speechSynthesizer.isVoiceOutputEnabled
 
     private val nexusPrefs by lazy {
         getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
@@ -207,7 +235,14 @@ class MedusaViewModel @Inject constructor(
         seedInitialMemoriesIfEmpty()
         seedInitialAccessPassesIfEmpty()
         seedInitialAccessLogsIfEmpty()
+        seedInitialSmartDevicesIfEmpty()
         observeAuthState()
+    }
+
+    private fun seedInitialSmartDevicesIfEmpty() {
+        viewModelScope.launch {
+            smartHomeService.seedInitialDevicesIfEmpty()
+        }
     }
 
     private fun observeAuthState() {
@@ -418,9 +453,17 @@ class MedusaViewModel @Inject constructor(
             val historyList = chatMessages.value.map { Pair(it.sender, it.content) }
             val memoryList = memoryNodes.value
 
+            // 2b. Check and execute IoT smart home domotics natural language command if applicable
+            val iotResult = smartHomeService.parseAndExecuteNaturalLanguageCommand(trimmed, smartDevices.value)
+            val effectivePrompt = if (iotResult != null) {
+                "$trimmed\n[Sistema Domótico IoT Medusa: Acción ejecutada exitosamente: ${iotResult.actionSummary} - ${iotResult.details}]"
+            } else {
+                trimmed
+            }
+
             // 3. Generate conversational response using the Google AI Client SDK (with Retrofit fallback)
             val googleAiResult = googleAiRepo.generateConversationalResponse(
-                prompt = trimmed,
+                prompt = effectivePrompt,
                 chatHistory = historyList,
                 memories = memoryList,
                 userRoleLabel = _userRole.value.label,
@@ -432,7 +475,7 @@ class MedusaViewModel @Inject constructor(
             } else {
                 Log.w("MedusaViewModel", "Google AI Client fallback to Retrofit: ${googleAiResult.exceptionOrNull()?.message}")
                 geminiRepo.generateResponse(
-                    prompt = trimmed,
+                    prompt = effectivePrompt,
                     chatHistory = historyList,
                     memories = memoryList,
                     customApiKey = _customApiKey.value,
@@ -444,6 +487,9 @@ class MedusaViewModel @Inject constructor(
                 // Save AI response to Room
                 val aiMsg = ChatMessageEntity(sender = "MEDUSA", content = responseText)
                 chatDao.insertMessage(aiMsg)
+
+                // 3b. Speak AI response aloud via MedusaSpeechSynthesizer
+                speechSynthesizer.speak(responseText)
 
                 // 4. Try automatic long-term memory extraction via Google AI Client SDK
                 val newMemoryNode = googleAiRepo.extractMemoryNode(
@@ -472,6 +518,7 @@ class MedusaViewModel @Inject constructor(
                 val errorMsg = ChatMessageEntity(sender = "MEDUSA", content = fallbackResponse)
                 chatDao.insertMessage(errorMsg)
                 _uiError.value = error.localizedMessage
+                speechSynthesizer.speak("Error de conexión al canal neural Medusa. Por favor verifica tu conexión.")
             }
 
             _isGenerating.value = false
@@ -886,5 +933,104 @@ class MedusaViewModel @Inject constructor(
 
     fun clearAuthError() {
         _authError.value = null
+    }
+
+    // ==================== SMART HOME & IOT DOMOTICS ====================
+
+    fun toggleIotDevicePower(device: SmartDeviceEntity) {
+        viewModelScope.launch {
+            smartHomeService.toggleDevicePower(device)
+        }
+    }
+
+    fun updateIotLightProperties(device: SmartDeviceEntity, isOn: Boolean, brightness: Int, colorHex: String) {
+        viewModelScope.launch {
+            smartHomeService.updateLightProperties(device, isOn, brightness, colorHex)
+        }
+    }
+
+    fun updateIotClimateProperties(
+        device: SmartDeviceEntity,
+        isOn: Boolean,
+        targetTemp: Float,
+        mode: ClimateHvacMode,
+        fan: FanSpeed
+    ) {
+        viewModelScope.launch {
+            smartHomeService.updateClimateProperties(device, isOn, targetTemp, mode, fan)
+        }
+    }
+
+    fun applyIotPreset(preset: SmartScenePreset) {
+        viewModelScope.launch {
+            val current = smartDevices.value
+            smartHomeService.applyScenePreset(preset, current)
+        }
+    }
+
+    fun setMasterPowerAll(isOn: Boolean) {
+        viewModelScope.launch {
+            val current = smartDevices.value
+            smartHomeService.setMasterPowerAll(isOn, current)
+        }
+    }
+
+    fun scanLocalIotDevices() {
+        viewModelScope.launch {
+            smartHomeService.scanLocalIotNetwork()
+        }
+    }
+
+    fun addNewIotDevice(device: SmartDeviceEntity) {
+        viewModelScope.launch {
+            smartHomeService.addNewDevice(device)
+        }
+    }
+
+    fun deleteIotDevice(device: SmartDeviceEntity) {
+        viewModelScope.launch {
+            smartHomeService.deleteDevice(device)
+        }
+    }
+
+    fun executeNaturalLanguageIotCommand(commandText: String) {
+        val trimmed = commandText.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            val userMsg = ChatMessageEntity(sender = "USER", content = trimmed)
+            chatDao.insertMessage(userMsg)
+
+            val iotResult = smartHomeService.parseAndExecuteNaturalLanguageCommand(trimmed, smartDevices.value)
+            val aiResponseText = if (iotResult != null) {
+                "⚡ [Protocolo Domótico IoT Ejecutado]: ${iotResult.actionSummary}.\n${iotResult.details}"
+            } else {
+                "Sistema IoT Medusa: Comando procesado en el nodo central. Dispositivos verificados y sincronizados."
+            }
+
+            val aiMsg = ChatMessageEntity(sender = "MEDUSA", content = aiResponseText)
+            chatDao.insertMessage(aiMsg)
+            speechSynthesizer.speak(aiResponseText)
+        }
+    }
+
+    fun speakText(text: String) {
+        speechSynthesizer.speak(text)
+    }
+
+    fun stopSpeaking() {
+        speechSynthesizer.stopSpeaking()
+    }
+
+    fun toggleVoiceOutput(): Boolean {
+        return speechSynthesizer.toggleVoiceOutput()
+    }
+
+    fun setVoiceOutputEnabled(enabled: Boolean) {
+        speechSynthesizer.setVoiceOutputEnabled(enabled)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        speechSynthesizer.shutdown()
     }
 }

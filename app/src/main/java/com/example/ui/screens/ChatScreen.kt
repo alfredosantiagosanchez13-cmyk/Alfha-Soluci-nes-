@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -84,6 +86,11 @@ fun ChatScreen(
     isGenerating: Boolean,
     onSendMessage: (String) -> Unit,
     onClearChat: () -> Unit,
+    isVoiceOutputEnabled: Boolean = true,
+    isSpeakingAi: Boolean = false,
+    onToggleVoiceOutput: () -> Unit = {},
+    onSpeakMessage: (String) -> Unit = {},
+    onStopSpeaking: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -147,6 +154,28 @@ fun ChatScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Voice Output Audio Speaker Toggle
+                IconButton(
+                    onClick = onToggleVoiceOutput,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (isVoiceOutputEnabled) SleekVioletDark else SleekSurface)
+                        .border(
+                            1.dp,
+                            if (isVoiceOutputEnabled) SleekVioletPrimary.copy(alpha = 0.6f) else SleekBorder,
+                            CircleShape
+                        )
+                        .semantics { testTag = "toggle_voice_output_button" }
+                ) {
+                    Icon(
+                        imageVector = if (isVoiceOutputEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        contentDescription = if (isVoiceOutputEnabled) "Desactivar voz de Medusa" else "Activar voz de Medusa",
+                        tint = if (isSpeakingAi) SleekVioletPrimary else if (isVoiceOutputEnabled) SleekVioletPrimary else SleekTextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
                 // Hands-Free Trigger Button
                 Box(
                     modifier = Modifier
@@ -243,7 +272,10 @@ fun ChatScreen(
             }
 
             items(messages, key = { it.id }) { msg ->
-                ChatMessageBubble(message = msg)
+                ChatMessageBubble(
+                    message = msg,
+                    onSpeak = { onSpeakMessage(msg.content) }
+                )
             }
 
             if (isGenerating) {
@@ -384,6 +416,7 @@ fun ChatScreen(
 @Composable
 fun ChatMessageBubble(
     message: ChatMessageEntity,
+    onSpeak: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isUser = message.sender == "USER"
@@ -438,13 +471,35 @@ fun ChatMessageBubble(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column {
-                    Text(
-                        text = if (isUser) "TÚ" else "NÚCLEO MEDUSA AI",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isUser) SleekVioletPrimary else SleekVioletPrimary.copy(alpha = 0.8f)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isUser) "TÚ" else "NÚCLEO MEDUSA AI",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUser) SleekVioletPrimary else SleekVioletPrimary.copy(alpha = 0.8f)
+                        )
+
+                        if (!isUser && onSpeak != null) {
+                            IconButton(
+                                onClick = onSpeak,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .semantics { testTag = "replay_audio_button_${message.id}" }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VolumeUp,
+                                    contentDescription = "Escuchar respuesta de Medusa",
+                                    tint = SleekVioletPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = message.content,

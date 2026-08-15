@@ -47,6 +47,18 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideSmartHomeService(
+        context: android.content.Context,
+        smartDeviceDao: com.example.data.db.SmartDeviceDao
+    ): com.example.data.repository.SmartHomeService {
+        return com.example.data.repository.SmartHomeService(
+            context = context,
+            smartDeviceDao = smartDeviceDao
+        )
+    }
+
+    @Provides
+    @Singleton
     fun provideAiMemoryRepository(
         chatMessageDao: ChatMessageDao,
         messageDao: MessageDao,

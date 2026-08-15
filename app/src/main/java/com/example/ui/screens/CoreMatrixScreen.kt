@@ -52,16 +52,20 @@ import androidx.compose.ui.unit.sp
 import com.example.data.db.AccessLogEntity
 import com.example.data.db.AccessPassEntity
 import com.example.data.db.MemoryNodeEntity
+import com.example.data.db.SmartDeviceEntity
+import com.example.data.model.SmartScenePreset
 import com.example.ui.UserRole
 import com.example.ui.components.AdminResidentManagerCard
 import com.example.ui.components.AlphaRootCommandCard
 import com.example.ui.components.ApkInstallerGuideCard
+import com.example.ui.components.D3MemoryDashboard
 import com.example.ui.components.FuturisticHandsFreeVoiceDialog
 import com.example.ui.components.GuardAccessConsoleCard
 import com.example.ui.components.MemoryNodeCard
 import com.example.ui.components.MetricsGridCard
 import com.example.ui.components.MonthlyAccessDashboardCard
 import com.example.ui.components.ResidentQrGeneratorCard
+import com.example.ui.components.SmartHomeSummaryCard
 import com.example.ui.components.SynapticAlignmentCard
 import com.example.ui.components.WorkManagerNotificationStatusCard
 import com.example.ui.theme.SleekBackground
@@ -96,6 +100,10 @@ fun CoreMatrixScreen(
     onNavigateToChat: () -> Unit,
     onNavigateToVault: () -> Unit,
     onNavigateToParcel: () -> Unit,
+    onNavigateToSmartHome: () -> Unit = {},
+    smartDevices: List<SmartDeviceEntity> = emptyList(),
+    onApplyPreset: (SmartScenePreset) -> Unit = {},
+    onToggleMasterPower: (Boolean) -> Unit = {},
     onTriggerTestNotification: () -> Unit = {},
     onSendVoiceMessage: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -251,6 +259,23 @@ fun CoreMatrixScreen(
             MetricsGridCard(
                 memoryCount = memoryCount,
                 messageCount = messageCount
+            )
+        }
+
+        // 4b. Interactive D3.js AI Learning & Memory Analytics
+        item {
+            D3MemoryDashboard(
+                memories = memories
+            )
+        }
+
+        // 4c. Smart Home IoT Condominial Control Summary Card
+        item {
+            SmartHomeSummaryCard(
+                devices = smartDevices,
+                onNavigateToSmartHome = onNavigateToSmartHome,
+                onApplyPreset = onApplyPreset,
+                onToggleMasterPower = onToggleMasterPower
             )
         }
 

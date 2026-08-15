@@ -78,4 +78,9 @@ object DatabaseModule {
     fun provideInteractionDao(db: MedusaDatabase): InteractionDao {
         return db.interactionDao()
     }
+
+    @Provides
+    fun provideSmartDeviceDao(db: MedusaDatabase): com.example.data.db.SmartDeviceDao {
+        return db.smartDeviceDao()
+    }
 }

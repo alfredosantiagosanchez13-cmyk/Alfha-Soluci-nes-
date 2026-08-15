@@ -228,11 +228,12 @@ fun FuturisticHandsFreeVoiceDialog(
     }
 
     val voicePrompts = listOf(
+        "Activar Modo Medusa en todo el condominio",
+        "Apagar luces de la terraza",
+        "Ajustar clima sala a 22 grados",
         "¿Quién vive en Casa 04?",
         "Registrar paquete de Amazon para Casa 12",
-        "¿Cuáles son los horarios de la alberca?",
-        "Generar pase de visita para Juan Pérez",
-        "Consultar directivas de seguridad"
+        "Generar pase de visita para Juan Pérez"
     )
 
     Dialog(
