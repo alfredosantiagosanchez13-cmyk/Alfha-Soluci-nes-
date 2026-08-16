@@ -304,9 +304,13 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     if (showNexusSettingsDialog) {
         SleekNexusSettingsDialog(
             currentConfig = nexusThemeConfig,
+            currentApiKey = customApiKey,
             onDismiss = { showNexusSettingsDialog = false },
             onApplyConfig = { newConfig ->
                 viewModel.updateNexusTheme(newConfig)
+            },
+            onSaveApiKey = { newKey ->
+                viewModel.updateApiKey(newKey)
             }
         )
     }

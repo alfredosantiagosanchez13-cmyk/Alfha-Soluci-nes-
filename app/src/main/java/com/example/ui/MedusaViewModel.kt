@@ -174,8 +174,21 @@ class MedusaViewModel @Inject constructor(
     private val _activeTab = MutableStateFlow(MedusaTab.CORE_MATRIX)
     val activeTab: StateFlow<MedusaTab> = _activeTab.asStateFlow()
 
-    private val _customApiKey = MutableStateFlow("")
+    private val nexusPrefs by lazy {
+        getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
+    }
+
+    private val _customApiKey = MutableStateFlow(loadPersistedApiKey())
     val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
+
+    private fun loadPersistedApiKey(): String {
+        return try {
+            val prefs = getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
+            prefs.getString("medusa_gemini_api_key", "") ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+    }
 
     private val _uiError = MutableStateFlow<String?>(null)
     val uiError: StateFlow<String?> = _uiError.asStateFlow()
@@ -186,10 +199,6 @@ class MedusaViewModel @Inject constructor(
     val speechSynthesizer = MedusaSpeechSynthesizer(application)
     val isSpeakingAi: StateFlow<Boolean> = speechSynthesizer.isSpeaking
     val isVoiceOutputEnabled: StateFlow<Boolean> = speechSynthesizer.isVoiceOutputEnabled
-
-    private val nexusPrefs by lazy {
-        getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
-    }
 
     private val _nexusThemeConfig = MutableStateFlow(loadPersistedThemeConfig())
     val nexusThemeConfig: StateFlow<SleekNexusThemeConfig> = _nexusThemeConfig.asStateFlow()
@@ -426,7 +435,15 @@ class MedusaViewModel @Inject constructor(
     }
 
     fun updateApiKey(key: String) {
-        _customApiKey.value = key
+        val clean = key.trim()
+        _customApiKey.value = clean
+        try {
+            nexusPrefs.edit()
+                .putString("medusa_gemini_api_key", clean)
+                .apply()
+        } catch (e: Exception) {
+            Log.e("MedusaViewModel", "Error al guardar GEMINI_API_KEY local", e)
+        }
     }
 
     fun clearError() {

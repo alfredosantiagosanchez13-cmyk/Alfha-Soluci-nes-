@@ -35,6 +35,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RestartAlt
@@ -93,12 +101,16 @@ import com.example.ui.theme.SleekTextSecondary
 @Composable
 fun SleekNexusSettingsDialog(
     currentConfig: SleekNexusThemeConfig,
+    currentApiKey: String = "",
     onDismiss: () -> Unit,
-    onApplyConfig: (SleekNexusThemeConfig) -> Unit
+    onApplyConfig: (SleekNexusThemeConfig) -> Unit,
+    onSaveApiKey: (String) -> Unit = {}
 ) {
     var selectedPalette by remember { mutableStateOf(currentConfig.accentPalette) }
     var selectedFont by remember { mutableStateOf(currentConfig.fontStyle) }
     var selectedGlow by remember { mutableStateOf(currentConfig.glowLevel) }
+    var apiKeyText by remember { mutableStateOf(currentApiKey) }
+    var showApiKeyPlain by remember { mutableStateOf(false) }
 
     val previewConfig = remember(selectedPalette, selectedFont, selectedGlow) {
         SleekNexusThemeConfig(
@@ -511,6 +523,118 @@ fun SleekNexusSettingsDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // SECTION 4: SEGURIDAD & GEMINI API KEY LOCAL
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Key,
+                        contentDescription = null,
+                        tint = selectedPalette.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "CONEXIÓN NEURAL GEMINI API (LOCAL)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = selectedPalette.primary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, SleekBorderSubtle, RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = SleekSurface)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Guarda tu clave de Gemini de forma segura y privada en este dispositivo. No se sube al código ni al repositorio.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = SleekTextSecondary,
+                            lineHeight = 15.sp
+                        )
+
+                        OutlinedTextField(
+                            value = apiKeyText,
+                            onValueChange = { apiKeyText = it },
+                            placeholder = {
+                                Text(
+                                    text = if (currentApiKey.isNotBlank()) "Clave activa guardada (••••••••)" else "Pega tu API Key (AIzaSy...)",
+                                    color = SleekTextMuted,
+                                    fontSize = 12.sp
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { testTag = "settings_gemini_api_key_field" },
+                            visualTransformation = if (showApiKeyPlain) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showApiKeyPlain = !showApiKeyPlain }) {
+                                    Icon(
+                                        imageVector = if (showApiKeyPlain) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (showApiKeyPlain) "Ocultar clave" else "Mostrar clave",
+                                        tint = selectedPalette.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = selectedPalette.primary,
+                                unfocusedBorderColor = SleekBorder,
+                                focusedTextColor = SleekTextPrimary,
+                                unfocusedTextColor = SleekTextPrimary
+                            ),
+                            singleLine = true
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (apiKeyText.isNotBlank() || currentApiKey.isNotBlank()) "● Clave configurada localmente" else "○ Sin clave personalizada",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                color = if (apiKeyText.isNotBlank() || currentApiKey.isNotBlank()) selectedPalette.highlight else SleekTextMuted
+                            )
+
+                            if (apiKeyText != currentApiKey) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(selectedPalette.primaryContainer)
+                                        .border(1.dp, selectedPalette.primary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            onSaveApiKey(apiKeyText.trim())
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = "Guardar Key",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = selectedPalette.highlight
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ACTION BUTTONS
@@ -545,6 +669,9 @@ fun SleekNexusSettingsDialog(
                     // Apply Button
                     Button(
                         onClick = {
+                            if (apiKeyText != currentApiKey) {
+                                onSaveApiKey(apiKeyText.trim())
+                            }
                             onApplyConfig(previewConfig)
                             onDismiss()
                         },
