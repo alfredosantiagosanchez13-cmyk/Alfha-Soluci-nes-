@@ -328,42 +328,35 @@ fun PrototypeMedusaOsDashboard(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // 5 Pilares Ribbon in Glassmorphic Capsules
+                    // 5 Pilares Ribbon in Medusa Tactical Capsules
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         val pilares = listOf(
-                            Pair("🔒 Seguridad Inteligente", Color(0xFF00E5FF)),
+                            Pair("🔒 Seguridad Inteligente", MedusaAlphaPalette.ElectricBlue),
                             Pair("📡 Monitoreo Avanzado", Color(0xFFB388FF)),
-                            Pair("🧠 Análisis Estratégico", Color(0xFFFFD54F)),
-                            Pair("🎯 Respuesta Efectiva", Color(0xFFFF5252)),
-                            Pair("⏳ Devolvemos Tiempo", Color(0xFF00E676))
+                            Pair("🧠 Análisis Estratégico", MedusaAlphaPalette.InstitutionalGold),
+                            Pair("🎯 Respuesta Efectiva", MedusaAlphaPalette.StatusCritical),
+                            Pair("⏳ Devolvemos Tiempo", MedusaAlphaPalette.StatusOperating)
                         )
                         items(pilares) { (pilar, color) ->
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(
-                                                Color(0xFF161F3D).copy(alpha = 0.9f),
-                                                Color(0xFF0D1326).copy(alpha = 0.9f)
-                                            )
-                                        )
-                                    )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MedusaAlphaPalette.DarkGraphite.copy(alpha = 0.9f))
                                     .border(
                                         width = 1.dp,
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                color.copy(alpha = 0.5f),
-                                                Color(0x22FFFFFF),
+                                                color.copy(alpha = 0.6f),
+                                                MedusaAlphaPalette.InstitutionalGold.copy(alpha = 0.2f),
                                                 color.copy(alpha = 0.2f)
                                             )
                                         ),
-                                        shape = RoundedCornerShape(14.dp)
+                                        shape = RoundedCornerShape(10.dp)
                                     )
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
                                     text = pilar,
@@ -398,9 +391,10 @@ fun PrototypeMedusaOsDashboard(
 
             if (showCasetaSection) {
                 item {
-                    SectionHeaderTitle(
-                        icon = "🛡️",
-                        title = "CASETA/VIGILANCIA"
+                    MedusaSectionHeader(
+                        iconGlyph = "🛡",
+                        title = "CASETA / VIGILANCIA",
+                        accentColor = MedusaAlphaPalette.ElectricBlue
                     )
                 }
 
@@ -438,9 +432,10 @@ fun PrototypeMedusaOsDashboard(
             if (showAdminSection) {
                 item {
                     Spacer(modifier = Modifier.height(14.dp))
-                    SectionHeaderTitle(
-                        icon = "🏢",
-                        title = "ADMINISTRACIÓN"
+                    MedusaSectionHeader(
+                        iconGlyph = "🏛",
+                        title = "ADMINISTRACIÓN",
+                        accentColor = MedusaAlphaPalette.InstitutionalGold
                     )
                 }
 
@@ -535,11 +530,10 @@ fun PrototypeSystemHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                Brush.horizontalGradient(
+                Brush.verticalGradient(
                     listOf(
-                        Color(0xFF0F172E).copy(alpha = 0.95f),
-                        Color(0xFF131D3B).copy(alpha = 0.95f),
-                        Color(0xFF0B1124).copy(alpha = 0.95f)
+                        MedusaAlphaPalette.PanelTitanium.copy(alpha = 0.98f),
+                        MedusaAlphaPalette.DarkGraphite.copy(alpha = 0.95f)
                     )
                 )
             )
@@ -547,9 +541,9 @@ fun PrototypeSystemHeader(
                 width = 1.dp,
                 brush = Brush.horizontalGradient(
                     listOf(
-                        Color(0xFF00E5FF).copy(alpha = 0.4f),
-                        Color(0xFFFFD54F).copy(alpha = 0.3f),
-                        Color(0xFF00E5FF).copy(alpha = 0.2f)
+                        MedusaAlphaPalette.ElectricBlue.copy(alpha = 0.45f),
+                        MedusaAlphaPalette.InstitutionalGold.copy(alpha = 0.40f),
+                        MedusaAlphaPalette.ElectricBlue.copy(alpha = 0.25f)
                     )
                 ),
                 shape = RoundedCornerShape(0.dp)
@@ -569,10 +563,15 @@ fun PrototypeSystemHeader(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF161E3D))
+                        .background(MedusaAlphaPalette.DarkGraphite)
                         .border(
                             1.2.dp,
-                            Brush.linearGradient(listOf(Color(0xFFFFD54F), Color(0xFF00E5FF))),
+                            Brush.linearGradient(
+                                listOf(
+                                    MedusaAlphaPalette.InstitutionalGold,
+                                    MedusaAlphaPalette.ElectricBlue
+                                )
+                            ),
                             CircleShape
                         )
                         .padding(2.dp),
@@ -596,14 +595,12 @@ fun PrototypeSystemHeader(
                             text = "MEDUSA ALFHA",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color(0xFFFFD54F),
-                            letterSpacing = 1.sp
+                            color = MedusaAlphaPalette.InstitutionalGold,
+                            letterSpacing = 1.2.sp
                         )
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF00E676))
+                        MedusaStatusIndicator(
+                            status = MedusaOperationalStatus.OPERANDO,
+                            customLabel = "ACTIVO"
                         )
                     }
                     Text(
@@ -611,7 +608,7 @@ fun PrototypeSystemHeader(
                         fontSize = 9.sp,
                         color = Color(0xFF80D8FF),
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.6.sp
                     )
                 }
             }
@@ -622,15 +619,19 @@ fun PrototypeSystemHeader(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF1A2447))
-                        .border(1.dp, Color(0xFF2F3F73), RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MedusaAlphaPalette.PanelSurface)
+                        .border(
+                            1.dp,
+                            MedusaAlphaPalette.InstitutionalGold.copy(alpha = 0.4f),
+                            RoundedCornerShape(12.dp)
+                        )
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = roleBadgeText,
                         fontSize = 10.sp,
-                        color = Color(0xFFFFD54F),
+                        color = MedusaAlphaPalette.InstitutionalGold,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -638,14 +639,18 @@ fun PrototypeSystemHeader(
                 Button(
                     onClick = onLock,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF26335C),
+                        containerColor = MedusaAlphaPalette.PanelTitanium,
                         contentColor = Color.White
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier
                         .height(30.dp)
-                        .border(1.dp, Color(0xFF3D4F88), RoundedCornerShape(14.dp))
+                        .border(
+                            1.dp,
+                            MedusaAlphaPalette.ElectricBlue.copy(alpha = 0.4f),
+                            RoundedCornerShape(12.dp)
+                        )
                 ) {
                     Text(text = "Salir", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
@@ -676,10 +681,11 @@ fun PrototypeKpiDashboardCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .sleekGlassmorphism(
-                shape = RoundedCornerShape(20.dp),
-                borderWidth = 1.2.dp,
-                neonAccent = Color(0xFF00E5FF)
+            .medusaFrame(
+                accentColor = MedusaAlphaPalette.ElectricBlue,
+                chamferRadius = 18.dp,
+                showCornerNodes = true,
+                showCircuitTraces = true
             )
             .padding(16.dp)
     ) {
@@ -694,41 +700,21 @@ fun PrototypeKpiDashboardCard(
                         text = "Buenos días, $greetingName",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MedusaAlphaPalette.TextPrimary,
                         fontSize = 16.sp
                     )
                     Text(
                         text = "Matriz Operativa en Tiempo Real",
                         fontSize = 11.sp,
-                        color = Color(0xFF80D8FF)
+                        color = Color(0xFF80D8FF),
+                        letterSpacing = 0.5.sp
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF00E676).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFF00E676).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF00E676))
-                        )
-                        Text(
-                            text = "EN LÍNEA",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00E676)
-                        )
-                    }
-                }
+                MedusaStatusIndicator(
+                    status = MedusaOperationalStatus.OPERANDO,
+                    customLabel = "EN LÍNEA"
+                )
             }
 
             // KPI Grid (2 columns)
@@ -740,14 +726,14 @@ fun PrototypeKpiDashboardCard(
                     emoji = "👮",
                     count = personalPresente.toString(),
                     label = "Personal presente",
-                    neonColor = Color(0xFF00E676),
+                    neonColor = MedusaAlphaPalette.StatusOperating,
                     modifier = Modifier.weight(1f)
                 )
                 KpiTile(
                     emoji = "🚨",
                     count = incidentesAbiertos.toString(),
                     label = "Incidentes abiertos",
-                    neonColor = if (incidentesAbiertos > 0) Color(0xFFFF5252) else Color(0xFF00E676),
+                    neonColor = if (incidentesAbiertos > 0) MedusaAlphaPalette.StatusCritical else MedusaAlphaPalette.StatusOperating,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -760,14 +746,14 @@ fun PrototypeKpiDashboardCard(
                     emoji = "📦",
                     count = paquetesPendientes.toString(),
                     label = "Paquetes pendientes",
-                    neonColor = Color(0xFFFFD54F),
+                    neonColor = MedusaAlphaPalette.InstitutionalGold,
                     modifier = Modifier.weight(1f)
                 )
                 KpiTile(
                     emoji = "👥",
                     count = visitantesDentro.toString(),
                     label = "Visitantes dentro",
-                    neonColor = Color(0xFF00E5FF),
+                    neonColor = MedusaAlphaPalette.ElectricBlue,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -788,30 +774,16 @@ fun KpiTile(
     emoji: String,
     count: String,
     label: String,
-    neonColor: Color = Color(0xFF00E676),
+    neonColor: Color = MedusaAlphaPalette.StatusOperating,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF141C38).copy(alpha = 0.9f),
-                        Color(0xFF0D1226).copy(alpha = 0.9f)
-                    )
-                )
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        neonColor.copy(alpha = 0.5f),
-                        Color(0x22FFFFFF),
-                        neonColor.copy(alpha = 0.2f)
-                    )
-                ),
-                shape = RoundedCornerShape(14.dp)
+            .medusaFrame(
+                accentColor = neonColor,
+                chamferRadius = 12.dp,
+                showCornerNodes = false,
+                showCircuitTraces = false
             )
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
@@ -830,7 +802,7 @@ fun KpiTile(
                 Text(
                     text = label,
                     fontSize = 10.sp,
-                    color = Color(0xFFB0BEC5),
+                    color = MedusaAlphaPalette.TextSecondary,
                     maxLines = 1
                 )
             }
@@ -888,95 +860,81 @@ fun PrototypeModulesGrid(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Group in pairs of 2
         modules.chunked(2).forEach { rowModules ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 rowModules.forEach { module ->
                     val moduleNeonColor = when (module) {
-                        PrototypeModuleType.ACCESOS, PrototypeModuleType.VISITANTES -> Color(0xFF00E5FF)
-                        PrototypeModuleType.ASISTENCIA, PrototypeModuleType.GUARDIAS -> Color(0xFF00E676)
-                        PrototypeModuleType.PAQUETERIA, PrototypeModuleType.VEHICULOS, PrototypeModuleType.PLACAS -> Color(0xFFFFD54F)
-                        PrototypeModuleType.INCIDENTES, PrototypeModuleType.REPORTES -> Color(0xFFFF5252)
+                        PrototypeModuleType.ACCESOS, PrototypeModuleType.VISITANTES -> MedusaAlphaPalette.ElectricBlue
+                        PrototypeModuleType.ASISTENCIA, PrototypeModuleType.GUARDIAS -> MedusaAlphaPalette.StatusOperating
+                        PrototypeModuleType.PAQUETERIA, PrototypeModuleType.VEHICULOS, PrototypeModuleType.PLACAS -> MedusaAlphaPalette.InstitutionalGold
+                        PrototypeModuleType.INCIDENTES, PrototypeModuleType.REPORTES -> MedusaAlphaPalette.StatusCritical
                         PrototypeModuleType.RONDINES, PrototypeModuleType.BITACORA -> Color(0xFFB388FF)
-                        else -> Color(0xFF2979FF)
+                        else -> MedusaAlphaPalette.TechBlue
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        Color(0xFF131A33).copy(alpha = 0.92f),
-                                        Color(0xFF0C1021).copy(alpha = 0.95f)
-                                    )
-                                )
-                            )
-                            .border(
-                                width = 1.1.dp,
-                                brush = Brush.linearGradient(
-                                    listOf(
-                                        moduleNeonColor.copy(alpha = 0.6f),
-                                        Color(0x25FFFFFF),
-                                        moduleNeonColor.copy(alpha = 0.25f)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(16.dp)
+                            .medusaFrame(
+                                accentColor = moduleNeonColor,
+                                chamferRadius = 14.dp,
+                                showCornerNodes = true,
+                                showCircuitTraces = true
                             )
                             .clickable { onModuleClick(module) }
                             .padding(14.dp)
                             .semantics { testTag = "prototype_module_${module.name.lowercase()}" }
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = module.iconEmoji, fontSize = 22.sp)
-
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            if (module.isOperating) Color(0xFF00E676).copy(alpha = 0.15f)
-                                            else Color(0xFFFFB300).copy(alpha = 0.15f)
-                                        )
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MedusaAlphaPalette.DarkGraphite)
                                         .border(
-                                            0.8.dp,
-                                            if (module.isOperating) Color(0xFF00E676).copy(alpha = 0.4f)
-                                            else Color(0xFFFFB300).copy(alpha = 0.4f),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            1.dp,
+                                            Brush.linearGradient(
+                                                listOf(
+                                                    moduleNeonColor.copy(alpha = 0.7f),
+                                                    MedusaAlphaPalette.InstitutionalGold.copy(alpha = 0.3f)
+                                                )
+                                            ),
+                                            RoundedCornerShape(10.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = if (module.isOperating) "● OPERANDO" else "● ATENCIÓN",
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (module.isOperating) Color(0xFF00E676) else Color(0xFFFFB300)
-                                    )
+                                    Text(text = module.iconEmoji, fontSize = 20.sp)
                                 }
+
+                                MedusaStatusIndicator(
+                                    status = if (module.isOperating) MedusaOperationalStatus.OPERANDO else MedusaOperationalStatus.ATENCION
+                                )
                             }
 
                             Text(
                                 text = module.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 13.sp
+                                color = MedusaAlphaPalette.TextPrimary,
+                                fontSize = 13.sp,
+                                maxLines = 1
                             )
 
                             Text(
                                 text = module.subtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF8B98B8),
+                                color = MedusaAlphaPalette.TextMuted,
                                 fontSize = 10.sp,
                                 lineHeight = 13.sp,
                                 maxLines = 2
@@ -1079,14 +1037,15 @@ fun ResidentPortalLoginCard(
             }
         }
 
-        // Form Card "INGRESA A TU CASA" with Sleek Glassmorphism
+        // Form Card "INGRESA A TU CASA" with Medusa Frame
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .sleekGlassmorphism(
-                    shape = RoundedCornerShape(22.dp),
-                    borderWidth = 1.2.dp,
-                    neonAccent = Color(0xFFFFD54F)
+                .medusaFrame(
+                    accentColor = MedusaAlphaPalette.InstitutionalGold,
+                    chamferRadius = 18.dp,
+                    showCornerNodes = true,
+                    showCircuitTraces = true
                 )
                 .padding(20.dp)
         ) {
@@ -1098,7 +1057,7 @@ fun ResidentPortalLoginCard(
                         text = "INGRESA A TU RESIDENCIA",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
-                        color = Color(0xFFFFD54F),
+                        color = MedusaAlphaPalette.InstitutionalGold,
                         fontSize = 14.sp
                     )
                 }
@@ -1122,7 +1081,7 @@ fun ResidentPortalLoginCard(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,
                                 unfocusedTextColor = Color.White,
-                                focusedBorderColor = Color(0xFFFFD54F),
+                                focusedBorderColor = MedusaAlphaPalette.InstitutionalGold,
                                 unfocusedBorderColor = Color(0xFF2C3558)
                             )
                         )
@@ -1155,7 +1114,7 @@ fun ResidentPortalLoginCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFFFD54F),
+                            focusedBorderColor = MedusaAlphaPalette.InstitutionalGold,
                             unfocusedBorderColor = Color(0xFF2C3558)
                         )
                     )
@@ -1173,7 +1132,7 @@ fun ResidentPortalLoginCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFFFD54F),
+                            focusedBorderColor = MedusaAlphaPalette.InstitutionalGold,
                             unfocusedBorderColor = Color(0xFF2C3558)
                         )
                     )
@@ -1182,7 +1141,7 @@ fun ResidentPortalLoginCard(
                 Button(
                     onClick = onEnterHouse,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFD54F),
+                        containerColor = MedusaAlphaPalette.InstitutionalGold,
                         contentColor = Color(0xFF121626)
                     ),
                     shape = RoundedCornerShape(12.dp),
@@ -1220,10 +1179,11 @@ fun ResidentHouseConsoleCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .sleekGlassmorphism(
-                shape = RoundedCornerShape(20.dp),
-                borderWidth = 1.2.dp,
-                neonAccent = Color(0xFFFFD54F)
+            .medusaFrame(
+                accentColor = MedusaAlphaPalette.InstitutionalGold,
+                chamferRadius = 18.dp,
+                showCornerNodes = true,
+                showCircuitTraces = true
             )
             .padding(18.dp)
     ) {
@@ -1243,19 +1203,14 @@ fun ResidentHouseConsoleCard(
                     Text(
                         text = condominio,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFFD54F)
+                        color = MedusaAlphaPalette.InstitutionalGold
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF00E676).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFF00E676).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(text = "● RESIDENTE ACTIVO", color = Color(0xFF00E676), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
+                MedusaStatusIndicator(
+                    status = MedusaOperationalStatus.OPERANDO,
+                    customLabel = "RESIDENTE ACTIVO"
+                )
             }
 
             // Quick resident actions
@@ -1276,7 +1231,7 @@ fun ResidentHouseConsoleCard(
 
                 Button(
                     onClick = onNavigateToChat,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MedusaAlphaPalette.ElectricBlue),
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
