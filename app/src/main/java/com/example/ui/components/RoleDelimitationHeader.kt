@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,8 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
@@ -37,12 +41,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.UserProfile
 import com.example.ui.UserRole
 import com.example.ui.theme.SleekBackground
@@ -64,6 +71,7 @@ fun RoleDelimitationHeader(
     onOpenApiKey: () -> Unit,
     onOpenAuth: () -> Unit = {},
     onOpenNexusSettings: () -> Unit = {},
+    onLockPin: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -80,36 +88,81 @@ fun RoleDelimitationHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E2544))
+                        .border(1.5.dp, Color(0xFFFFD54F), CircleShape)
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_medusa_logo),
+                        contentDescription = "Logo Medusa Alpha",
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(10.dp)
+                            .fillMaxSize()
                             .clip(CircleShape)
-                            .background(
-                                if (activeRole == UserRole.ALFHA_SANTIAGO) Color(0xFF10B981) else SleekVioletPrimary
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "DELIMITACIÓN DE PERFIL",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SleekVioletPrimary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
                     )
                 }
-                Text(
-                    text = activeRole.label,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = SleekTextPrimary,
-                    fontSize = 20.sp
-                )
+
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (activeRole == UserRole.ALFHA_SANTIAGO) Color(0xFF10B981) else SleekVioletPrimary
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "MEDUSA ALFHA · DELIMITACIÓN",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SleekVioletPrimary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Text(
+                        text = activeRole.label,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SleekTextPrimary,
+                        fontSize = 19.sp
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // PIN Lock button
+                IconButton(
+                    onClick = onLockPin,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(SleekSurfaceVariant)
+                        .border(1.dp, SleekBorderSubtle, CircleShape)
+                        .semantics {
+                            testTag = "lock_pin_header_btn"
+                            contentDescription = "Bloquear con PIN de acceso"
+                        }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Bloquear PIN",
+                        tint = Color(0xFFFFB300),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
                 // Sleek Nexus Customizer Button
                 IconButton(
                     onClick = onOpenNexusSettings,
@@ -192,6 +245,7 @@ fun RoleDelimitationHeader(
                                 UserRole.RESIDENTES -> Color(0xFF064E3B)
                                 UserRole.GUARDIA -> Color(0xFF1E293B)
                                 UserRole.ADMINISTRACION -> Color(0xFF312E81)
+                                UserRole.TRABAJADOR -> Color(0xFF422006)
                             }
                         )
                         .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
@@ -205,6 +259,7 @@ fun RoleDelimitationHeader(
                             UserRole.RESIDENTES -> Color(0xFF6EE7B7)
                             UserRole.GUARDIA -> Color(0xFF38BDF8)
                             UserRole.ADMINISTRACION -> Color(0xFFC084FC)
+                            UserRole.TRABAJADOR -> Color(0xFFFDE047)
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
@@ -229,6 +284,7 @@ fun RoleDelimitationHeader(
                     UserRole.RESIDENTES -> Pair(Icons.Default.Home, Color(0xFF10B981))
                     UserRole.GUARDIA -> Pair(Icons.Default.Security, Color(0xFF0284C7))
                     UserRole.ADMINISTRACION -> Pair(Icons.Default.Badge, Color(0xFFEC4899))
+                    UserRole.TRABAJADOR -> Pair(Icons.Default.Engineering, Color(0xFFD97706))
                 }
 
                 Row(

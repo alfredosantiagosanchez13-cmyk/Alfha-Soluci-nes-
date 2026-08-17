@@ -428,19 +428,37 @@ fun SleekBottomPillNav(
     onTabSelected: (MedusaTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-        Surface(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
-                .background(SleekSurfaceVariant)
-                .border(1.dp, SleekBorder, RoundedCornerShape(32.dp))
-                .padding(4.dp),
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xEE11172E),
+                            Color(0xF50A0E1C)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.2.dp,
+                    brush = Brush.linearGradient(
+                        listOf(
+                            Color(0xFF00E5FF).copy(alpha = 0.5f),
+                            Color(0x33FFFFFF),
+                            Color(0xFFB388FF).copy(alpha = 0.4f),
+                            Color(0xFFFFD54F).copy(alpha = 0.3f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(32.dp)
+                )
+                .padding(5.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -448,17 +466,37 @@ fun SleekBottomPillNav(
                 Triple(MedusaTab.CORE_MATRIX, "Matriz", Icons.Default.Psychology),
                 Triple(MedusaTab.NEURAL_CHAT, "IA", Icons.Default.AutoAwesome),
                 Triple(MedusaTab.SMART_HOME, "Hogar", Icons.Default.Sensors),
-                Triple(MedusaTab.QR_SCANNER, "Escáner", Icons.Default.QrCodeScanner),
+                Triple(MedusaTab.QR_SCANNER, "QR", Icons.Default.QrCodeScanner),
                 Triple(MedusaTab.SMART_PARCEL, "Paquetes", Icons.Default.Inventory2),
                 Triple(MedusaTab.MEMORY_VAULT, "Bóveda", Icons.Default.Memory)
             )
 
             tabs.forEach { (tab, label, icon) ->
                 val selected = activeTab == tab
+                val neonColor = when (tab) {
+                    MedusaTab.CORE_MATRIX -> Color(0xFF00E5FF)
+                    MedusaTab.NEURAL_CHAT -> Color(0xFFB388FF)
+                    MedusaTab.SMART_HOME -> Color(0xFF00E676)
+                    MedusaTab.QR_SCANNER -> Color(0xFFFFD54F)
+                    MedusaTab.SMART_PARCEL -> Color(0xFFFF9100)
+                    MedusaTab.MEMORY_VAULT -> Color(0xFF7C4DFF)
+                }
+
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(24.dp))
-                        .background(if (selected) SleekVioletPrimary else Color.Transparent)
+                        .then(
+                            if (selected) {
+                                Modifier.background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            neonColor,
+                                            neonColor.copy(alpha = 0.85f)
+                                        )
+                                    )
+                                )
+                            } else Modifier
+                        )
                         .clickable { onTabSelected(tab) }
                         .padding(horizontal = if (selected) 12.dp else 8.dp, vertical = 8.dp)
                         .semantics {
@@ -471,7 +509,7 @@ fun SleekBottomPillNav(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (selected) SleekVioletDark else SleekTextSecondary,
+                        tint = if (selected) Color(0xFF090D1A) else Color(0xFF8B9BB4),
                         modifier = Modifier.size(17.dp)
                     )
                     if (selected) {
@@ -480,8 +518,8 @@ fun SleekBottomPillNav(
                             text = label,
                             style = MaterialTheme.typography.titleMedium,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SleekVioletDark
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF090D1A)
                         )
                     }
                 }

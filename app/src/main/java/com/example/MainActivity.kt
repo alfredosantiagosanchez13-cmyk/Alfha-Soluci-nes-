@@ -52,6 +52,7 @@ import com.example.ui.MedusaTab
 import com.example.ui.MedusaViewModel
 import com.example.ui.UserRole
 import com.example.ui.components.AuthDialog
+import com.example.ui.components.PrototypePinLockScreen
 import com.example.ui.components.RoleDelimitationHeader
 import com.example.ui.components.SleekBottomPillNav
 import com.example.ui.components.SleekNexusSettingsDialog
@@ -131,6 +132,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MedusaAppScreen(viewModel: MedusaViewModel) {
     val context = LocalContext.current
+    val isPinLocked by viewModel.isPinLocked.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
     val activeRole by viewModel.userRole.collectAsState()
     val chatMessages by viewModel.chatMessages.collectAsState()
@@ -148,6 +150,13 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     val isSpeakingAi by viewModel.isSpeakingAi.collectAsState()
     val isVoiceOutputEnabled by viewModel.isVoiceOutputEnabled.collectAsState()
 
+    val personalPresente by viewModel.prototypePersonalPresente.collectAsState()
+    val incidentesAbiertos by viewModel.prototypeIncidentesAbiertos.collectAsState()
+    val paquetesPendientes by viewModel.prototypePaquetesPendientes.collectAsState()
+    val visitantesDentro by viewModel.prototypeVisitantesDentro.collectAsState()
+    val rondinesCompletos by viewModel.prototypeRondinesCompletos.collectAsState()
+    val parcels by viewModel.parcels.collectAsState()
+
     val authUserProfile by viewModel.authUserProfile.collectAsState()
     val isAuthLoading by viewModel.isAuthLoading.collectAsState()
     val authError by viewModel.authError.collectAsState()
@@ -157,108 +166,127 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
     var showNexusSettingsDialog by remember { mutableStateOf(false) }
     val nexusThemeConfig by viewModel.nexusThemeConfig.collectAsState()
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars),
-        containerColor = SleekBackground,
-        topBar = {
-            RoleDelimitationHeader(
-                activeRole = activeRole,
-                currentUserProfile = authUserProfile,
-                onRoleSelected = { viewModel.selectUserRole(it) },
-                onOpenApiKey = { showApiKeyDialog = true },
-                onOpenAuth = {
-                    viewModel.clearAuthError()
-                    showAuthDialog = true
-                },
-                onOpenNexusSettings = { showNexusSettingsDialog = true }
-            )
-        },
-        bottomBar = {
-            SleekBottomPillNav(
-                activeTab = activeTab,
-                onTabSelected = { viewModel.selectTab(it) }
-            )
-        }
-    ) { paddingValues ->
-        Box(
+    if (isPinLocked) {
+        PrototypePinLockScreen(
+            onUnlockSuccess = { role -> viewModel.unlockWithRole(role) }
+        )
+    } else {
+        Scaffold(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(SleekBackground)
-        ) {
-            AnimatedContent(
-                targetState = activeTab,
-                transitionSpec = { fadeIn() with fadeOut() },
-                label = "tabTransition"
-            ) { tab ->
-                when (tab) {
-                    MedusaTab.CORE_MATRIX -> {
-                        CoreMatrixScreen(
-                            activeRole = activeRole,
-                            synapticScore = synapticScore,
-                            memoryCount = memoryCount,
-                            messageCount = messageCount,
-                            memories = memoryNodes,
-                            accessPasses = accessPasses,
-                            accessLogs = accessLogs,
-                            lastLearnedMemory = lastLearnedMemory,
-                            onDeleteMemory = { viewModel.deleteMemoryNode(it) },
-                            onCreatePass = { h, r, v, t, hrs -> viewModel.createAccessPass(h, r, v, t, hrs) },
-                            onCreateResidentCredential = { h, n, l, p -> viewModel.createResidentCredential(h, n, l, p) },
-                            onValidatePassCode = { code -> viewModel.validateAccessPassCode(code, context) },
-                            onDeletePass = { pass -> viewModel.deleteAccessPass(pass) },
-                            onPurgeExpiredPasses = { viewModel.purgeExpiredAccessPasses() },
-                            onNavigateToChat = { viewModel.selectTab(MedusaTab.NEURAL_CHAT) },
-                            onNavigateToVault = { viewModel.selectTab(MedusaTab.MEMORY_VAULT) },
-                            onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) },
-                            onNavigateToSmartHome = { viewModel.selectTab(MedusaTab.SMART_HOME) },
-                            smartDevices = smartDevices,
-                            onApplyPreset = { viewModel.applyIotPreset(it) },
-                            onToggleMasterPower = { viewModel.setMasterPowerAll(it) },
-                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) },
-                            onSendVoiceMessage = { viewModel.sendMessage(it) }
-                        )
-                    }
-                    MedusaTab.NEURAL_CHAT -> {
-                        ChatScreen(
-                            messages = chatMessages,
-                            isGenerating = isGenerating,
-                            onSendMessage = { viewModel.sendMessage(it) },
-                            onClearChat = { viewModel.clearChatHistory() },
-                            isVoiceOutputEnabled = isVoiceOutputEnabled,
-                            isSpeakingAi = isSpeakingAi,
-                            onToggleVoiceOutput = { viewModel.toggleVoiceOutput() },
-                            onSpeakMessage = { viewModel.speakText(it) },
-                            onStopSpeaking = { viewModel.stopSpeaking() }
-                        )
-                    }
-                    MedusaTab.SMART_HOME -> {
-                        SmartHomeScreen(viewModel = viewModel)
-                    }
-                    MedusaTab.QR_SCANNER -> {
-                        QrScannerScreen(
-                            accessPasses = accessPasses,
-                            accessLogs = accessLogs,
-                            onValidateCode = { code -> viewModel.validateAccessPassCode(code, context) },
-                            onDeleteLog = { log -> viewModel.deleteAccessLog(log) },
-                            onClearLogs = { viewModel.clearAllAccessLogs() },
-                            onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) }
-                        )
-                    }
-                    MedusaTab.SMART_PARCEL -> {
-                        SmartParcelScreen(viewModel = viewModel)
-                    }
-                    MedusaTab.MEMORY_VAULT -> {
-                        MemoryVaultScreen(
-                            memories = memoryNodes,
-                            onAddMemory = { cat, title, detail ->
-                                viewModel.addManualMemoryNode(cat, title, detail)
-                            },
-                            onDeleteMemory = { viewModel.deleteMemoryNode(it) },
-                            onClearAllMemories = { viewModel.clearAllMemories() }
-                        )
+                .windowInsetsPadding(WindowInsets.systemBars),
+            containerColor = SleekBackground,
+            topBar = {
+                RoleDelimitationHeader(
+                    activeRole = activeRole,
+                    currentUserProfile = authUserProfile,
+                    onRoleSelected = { viewModel.selectUserRole(it) },
+                    onOpenApiKey = { showApiKeyDialog = true },
+                    onOpenAuth = {
+                        viewModel.clearAuthError()
+                        showAuthDialog = true
+                    },
+                    onOpenNexusSettings = { showNexusSettingsDialog = true },
+                    onLockPin = { viewModel.lockScreen() }
+                )
+            },
+            bottomBar = {
+                SleekBottomPillNav(
+                    activeTab = activeTab,
+                    onTabSelected = { viewModel.selectTab(it) }
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(SleekBackground)
+            ) {
+                AnimatedContent(
+                    targetState = activeTab,
+                    transitionSpec = { fadeIn() with fadeOut() },
+                    label = "tabTransition"
+                ) { tab ->
+                    when (tab) {
+                        MedusaTab.CORE_MATRIX -> {
+                            CoreMatrixScreen(
+                                activeRole = activeRole,
+                                synapticScore = synapticScore,
+                                memoryCount = memoryCount,
+                                messageCount = messageCount,
+                                memories = memoryNodes,
+                                accessPasses = accessPasses,
+                                accessLogs = accessLogs,
+                                parcels = parcels,
+                                personalPresenteCount = personalPresente,
+                                incidentesAbiertosCount = incidentesAbiertos,
+                                paquetesPendientesCount = paquetesPendientes,
+                                visitantesDentroCount = visitantesDentro,
+                                rondinesCompletosText = rondinesCompletos,
+                                lastLearnedMemory = lastLearnedMemory,
+                                onDeleteMemory = { viewModel.deleteMemoryNode(it) },
+                                onCreatePass = { h, r, v, t, hrs -> viewModel.createAccessPass(h, r, v, t, hrs) },
+                                onCreateResidentCredential = { h, n, l, p -> viewModel.createResidentCredential(h, n, l, p) },
+                                onValidatePassCode = { code -> viewModel.validateAccessPassCode(code, context) },
+                                onDeletePass = { pass -> viewModel.deleteAccessPass(pass) },
+                                onPurgeExpiredPasses = { viewModel.purgeExpiredAccessPasses() },
+                                onNavigateToChat = { viewModel.selectTab(MedusaTab.NEURAL_CHAT) },
+                                onNavigateToVault = { viewModel.selectTab(MedusaTab.MEMORY_VAULT) },
+                                onNavigateToParcel = { viewModel.selectTab(MedusaTab.SMART_PARCEL) },
+                                onNavigateToSmartHome = { viewModel.selectTab(MedusaTab.SMART_HOME) },
+                                onLockScreen = { viewModel.lockScreen() },
+                                onRegisterAttendance = { n, a, g, note -> viewModel.registerAttendanceRecord(n, a, g, note) },
+                                onRegisterVisitor = { n, h, p -> viewModel.registerVisitorEntry(n, h, p) },
+                                onReportIncident = { t, p, d -> viewModel.reportIncident(t, p, d) },
+                                onRecordPatrol = { cp -> viewModel.recordPatrolCheckpoint(cp) },
+                                onGenerateAiReport = { onResult -> viewModel.generateAiMedusaExecutiveReport(onResult) },
+                                smartDevices = smartDevices,
+                                onApplyPreset = { viewModel.applyIotPreset(it) },
+                                onToggleMasterPower = { viewModel.setMasterPowerAll(it) },
+                                onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) },
+                                onSendVoiceMessage = { viewModel.sendMessage(it) }
+                            )
+                        }
+                        MedusaTab.NEURAL_CHAT -> {
+                            ChatScreen(
+                                messages = chatMessages,
+                                isGenerating = isGenerating,
+                                onSendMessage = { viewModel.sendMessage(it) },
+                                onClearChat = { viewModel.clearChatHistory() },
+                                isVoiceOutputEnabled = isVoiceOutputEnabled,
+                                isSpeakingAi = isSpeakingAi,
+                                onToggleVoiceOutput = { viewModel.toggleVoiceOutput() },
+                                onSpeakMessage = { viewModel.speakText(it) },
+                                onStopSpeaking = { viewModel.stopSpeaking() }
+                            )
+                        }
+                        MedusaTab.SMART_HOME -> {
+                            SmartHomeScreen(viewModel = viewModel)
+                        }
+                        MedusaTab.QR_SCANNER -> {
+                            QrScannerScreen(
+                                accessPasses = accessPasses,
+                                accessLogs = accessLogs,
+                                onValidateCode = { code -> viewModel.validateAccessPassCode(code, context) },
+                                onDeleteLog = { log -> viewModel.deleteAccessLog(log) },
+                                onClearLogs = { viewModel.clearAllAccessLogs() },
+                                onTriggerTestNotification = { viewModel.triggerTestWorkManagerNotification(context) }
+                            )
+                        }
+                        MedusaTab.SMART_PARCEL -> {
+                            SmartParcelScreen(viewModel = viewModel)
+                        }
+                        MedusaTab.MEMORY_VAULT -> {
+                            MemoryVaultScreen(
+                                memories = memoryNodes,
+                                onAddMemory = { cat, title, detail ->
+                                    viewModel.addManualMemoryNode(cat, title, detail)
+                                },
+                                onDeleteMemory = { viewModel.deleteMemoryNode(it) },
+                                onClearAllMemories = { viewModel.clearAllMemories() }
+                            )
+                        }
                     }
                 }
             }
@@ -311,6 +339,9 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
             },
             onSaveApiKey = { newKey ->
                 viewModel.updateApiKey(newKey)
+            },
+            onClearApiKey = {
+                viewModel.clearApiKey()
             }
         )
     }

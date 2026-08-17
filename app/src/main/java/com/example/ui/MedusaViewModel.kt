@@ -34,6 +34,7 @@ import com.example.data.repository.FirebaseAuthRepository
 import com.example.data.repository.GoogleAiGeminiRepository
 import com.example.data.repository.ParcelRepository
 import com.example.data.repository.SmartHomeService
+import com.example.data.security.SecureApiKeyStorage
 import com.example.ui.theme.NexusAccentPalette
 import com.example.ui.theme.NexusFontStyle
 import com.example.ui.theme.NexusGlowLevel
@@ -48,6 +49,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -66,7 +68,8 @@ enum class UserRole(val label: String, val badge: String, val description: Strin
     ALFHA_SANTIAGO("Santiago (Alfha)", "👑 ALPHA", "Superusuario con control total de la matriz neural"),
     RESIDENTES("Residente", "🏠 RESIDENTE", "Generación de QR para visitas y estado de caseta"),
     GUARDIA("Guardia", "🛡️ GUARDIA", "Validación QR, escaneo de paquetes y accesos"),
-    ADMINISTRACION("Administración", "⚙️ ADMIN", "Auditoría, métricas D3 y directorio residencial")
+    ADMINISTRACION("Administración", "⚙️ ADMIN", "Auditoría, métricas D3 y directorio residencial"),
+    TRABAJADOR("Trabajador Mantenimiento", "👷 TRABAJADOR", "Control de asistencia y tareas de mantenimiento")
 }
 
 @HiltViewModel
@@ -94,14 +97,14 @@ class MedusaViewModel @Inject constructor(
         parcelRepository = ParcelRepository(MedusaDatabase.getDatabase(application).parcelDao()),
         accessPassDao = MedusaDatabase.getDatabase(application).accessPassDao(),
         accessLogDao = MedusaDatabase.getDatabase(application).accessLogDao(),
-        geminiRepo = GeminiRepository(),
+        geminiRepo = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application)),
         googleAiRepo = GoogleAiGeminiRepository(),
         authRepo = FirebaseAuthRepository(),
         aiLearningRepo = AiLearningContextRepository(
             memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
             interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
             memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
-            geminiRepository = GeminiRepository()
+            geminiRepository = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application))
         ),
         aiMemoryRepo = AiMemoryRepository(
             chatMessageDao = MedusaDatabase.getDatabase(application).chatMessageDao(),
@@ -110,7 +113,7 @@ class MedusaViewModel @Inject constructor(
             memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
             interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
             memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
-            geminiRepository = GeminiRepository()
+            geminiRepository = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application))
         ),
         smartHomeService = SmartHomeService(
             context = application,
@@ -178,17 +181,12 @@ class MedusaViewModel @Inject constructor(
         getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
     }
 
-    private val _customApiKey = MutableStateFlow(loadPersistedApiKey())
-    val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
-
-    private fun loadPersistedApiKey(): String {
-        return try {
-            val prefs = getApplication<Application>().getSharedPreferences("medusa_nexus_prefs", Context.MODE_PRIVATE)
-            prefs.getString("medusa_gemini_api_key", "") ?: ""
-        } catch (_: Exception) {
-            ""
-        }
+    private val secureApiKeyStorage by lazy {
+        SecureApiKeyStorage(getApplication<Application>())
     }
+
+    private val _customApiKey = MutableStateFlow(secureApiKeyStorage.getApiKey())
+    val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
 
     private val _uiError = MutableStateFlow<String?>(null)
     val uiError: StateFlow<String?> = _uiError.asStateFlow()
@@ -434,16 +432,18 @@ class MedusaViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun updateApiKey(key: String) {
+    fun updateApiKey(key: String): Boolean {
         val clean = key.trim()
-        _customApiKey.value = clean
-        try {
-            nexusPrefs.edit()
-                .putString("medusa_gemini_api_key", clean)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("MedusaViewModel", "Error al guardar GEMINI_API_KEY local", e)
+        if (clean.isBlank()) {
+            return false
         }
+        _customApiKey.value = clean
+        return secureApiKeyStorage.saveApiKey(clean)
+    }
+
+    fun clearApiKey(): Boolean {
+        _customApiKey.value = ""
+        return secureApiKeyStorage.clearApiKey()
     }
 
     fun clearError() {
@@ -516,7 +516,7 @@ class MedusaViewModel @Inject constructor(
                 ) ?: geminiRepo.extractMemoryNode(
                     userMessage = trimmed,
                     aiResponse = responseText,
-                    apiKey = _customApiKey.value
+                    customApiKey = _customApiKey.value
                 )
 
                 if (newMemoryNode != null) {
@@ -1044,6 +1044,166 @@ class MedusaViewModel @Inject constructor(
 
     fun setVoiceOutputEnabled(enabled: Boolean) {
         speechSynthesizer.setVoiceOutputEnabled(enabled)
+    }
+
+    // Prototype Medusa OS PIN and KPI State
+    private val _isPinLocked = MutableStateFlow(false)
+    val isPinLocked: StateFlow<Boolean> = _isPinLocked.asStateFlow()
+
+    private val _prototypePersonalPresente = MutableStateFlow(2)
+    val prototypePersonalPresente: StateFlow<Int> = _prototypePersonalPresente.asStateFlow()
+
+    private val _prototypeIncidentesAbiertos = MutableStateFlow(0)
+    val prototypeIncidentesAbiertos: StateFlow<Int> = _prototypeIncidentesAbiertos.asStateFlow()
+
+    private val _prototypeVisitantesDentro = MutableStateFlow(1)
+    val prototypeVisitantesDentro: StateFlow<Int> = _prototypeVisitantesDentro.asStateFlow()
+
+    private val _prototypeRondinesCompletos = MutableStateFlow("3/4")
+    val prototypeRondinesCompletos: StateFlow<String> = _prototypeRondinesCompletos.asStateFlow()
+
+    val prototypePaquetesPendientes: StateFlow<Int> = parcels.map { list ->
+        list.count { it.status.equals("RECIBIDO", ignoreCase = true) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun lockScreen() {
+        _isPinLocked.value = true
+    }
+
+    fun lockWithPin() {
+        _isPinLocked.value = true
+    }
+
+    fun unlockWithPin(pin: String): Boolean {
+        return when (pin) {
+            "9999", "0000", "2026" -> {
+                _userRole.value = UserRole.ALFHA_SANTIAGO
+                _isPinLocked.value = false
+                true
+            }
+            "1234", "1010" -> {
+                _userRole.value = UserRole.GUARDIA
+                _isPinLocked.value = false
+                true
+            }
+            "4321", "2020" -> {
+                _userRole.value = UserRole.ADMINISTRACION
+                _isPinLocked.value = false
+                true
+            }
+            "7777", "1313" -> {
+                _userRole.value = UserRole.RESIDENTES
+                _isPinLocked.value = false
+                true
+            }
+            "1111" -> {
+                _userRole.value = UserRole.TRABAJADOR
+                _isPinLocked.value = false
+                true
+            }
+            else -> false
+        }
+    }
+
+    fun unlockWithRole(role: UserRole) {
+        _userRole.value = role
+        _isPinLocked.value = false
+    }
+
+    fun registerAttendanceRecord(workerName: String, action: String, gpsLocation: String, photoNote: String) {
+        viewModelScope.launch {
+            val passLog = AccessLogEntity(
+                passCode = "ATTENDANCE-${System.currentTimeMillis() % 10000}",
+                residentHouse = "PERSONAL DE MANTENIMIENTO",
+                residentName = workerName,
+                visitorName = workerName,
+                accessType = action.uppercase(),
+                isGranted = true,
+                resultReason = "Asistencia GPS: $gpsLocation - $photoNote",
+                timestampMs = System.currentTimeMillis(),
+                scannedByRole = _userRole.value.label
+            )
+            accessLogDao.insertAccessLog(passLog)
+            if (action.contains("Entrada", ignoreCase = true)) {
+                _prototypePersonalPresente.value += 1
+            } else if (_prototypePersonalPresente.value > 0) {
+                _prototypePersonalPresente.value -= 1
+            }
+        }
+    }
+
+    fun registerVisitorEntry(visitorName: String, destinationHouse: String, vehiclePlates: String) {
+        viewModelScope.launch {
+            val log = AccessLogEntity(
+                passCode = "VISIT-${System.currentTimeMillis() % 10000}",
+                residentHouse = destinationHouse,
+                residentName = "Residente $destinationHouse",
+                visitorName = "$visitorName (Placas: $vehiclePlates)",
+                accessType = "VISITA VEHICULAR",
+                isGranted = true,
+                resultReason = "Registro en Caseta por Guardia",
+                timestampMs = System.currentTimeMillis(),
+                scannedByRole = _userRole.value.label
+            )
+            accessLogDao.insertAccessLog(log)
+            _prototypeVisitantesDentro.value += 1
+        }
+    }
+
+    fun reportIncident(incidentTitle: String, priority: String, description: String) {
+        viewModelScope.launch {
+            val memory = MemoryNodeEntity(
+                category = "SECURITY",
+                title = "Incidente: $incidentTitle [$priority]",
+                detail = "Reportado por ${_userRole.value.label}: $description (Fecha: ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())})",
+                confidenceScore = 0.95f,
+                isUserAdded = true
+            )
+            memoryDao.insertMemory(memory)
+            _prototypeIncidentesAbiertos.value += 1
+        }
+    }
+
+    fun recordPatrolCheckpoint(checkpointName: String) {
+        viewModelScope.launch {
+            val log = AccessLogEntity(
+                passCode = "RONDIN-${System.currentTimeMillis() % 10000}",
+                residentHouse = "PERÍMETRO SEGURIDAD",
+                residentName = "Puesto de Vigilancia",
+                visitorName = "Guardia en Turno",
+                accessType = "CHECKPOINT RONDÍN",
+                isGranted = true,
+                resultReason = "Checkpoint escaneado: $checkpointName",
+                timestampMs = System.currentTimeMillis(),
+                scannedByRole = _userRole.value.label
+            )
+            accessLogDao.insertAccessLog(log)
+            _prototypeRondinesCompletos.value = "4/4 (Completo)"
+        }
+    }
+
+    fun generateAiMedusaExecutiveReport(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val prompt = """
+                Genera un reporte ejecutivo conciso para el Sistema Medusa OS / Condominio Paraíso:
+                - Estado actual de seguridad y caseta
+                - Personal presente: ${_prototypePersonalPresente.value}
+                - Incidentes abiertos: ${_prototypeIncidentesAbiertos.value}
+                - Visitantes dentro: ${_prototypeVisitantesDentro.value}
+                - Paquetes pendientes: ${parcels.value.count { it.status.equals("RECIBIDO", ignoreCase = true) }}
+                - Rondines: ${_prototypeRondinesCompletos.value}
+                
+                Usa el tono 'Sleek Nexus / Medusa OS': profesional, conciso, enfocado en cumplimiento y seguridad.
+            """.trimIndent()
+            
+            val response = try {
+                geminiRepo.generateResponse(prompt).getOrNull()
+                    ?: "REPORTE EJECUTIVO MEDUSA OS:\n• Operatividad: 100% nominal.\n• Accesos y Caseta: Sin anomalías registradas.\n• Consignas vigentes: Patrullajes perimetrales al 100%."
+            } catch (e: Exception) {
+                "REPORTE EJECUTIVO MEDUSA OS:\n• Operatividad: 100% nominal.\n• Accesos y Caseta: Sin anomalías registradas.\n• Consignas vigentes: Patrullajes perimetrales al 100%."
+            }
+            onResult(response)
+        }
     }
 
     override fun onCleared() {

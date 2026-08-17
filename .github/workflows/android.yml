@@ -3,8 +3,8 @@ name: Android CI & Release
 on:
   push:
     branches: [ "main", "master" ]
-  tags:
-    - "v*"
+    tags:
+      - "v*"
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
