@@ -61,7 +61,8 @@ enum class MedusaTab {
     SMART_HOME,
     QR_SCANNER,
     SMART_PARCEL,
-    MEMORY_VAULT
+    MEMORY_VAULT,
+    SETTINGS_NEXUS
 }
 
 enum class UserRole(val label: String, val badge: String, val description: String) {
@@ -97,14 +98,23 @@ class MedusaViewModel @Inject constructor(
         parcelRepository = ParcelRepository(MedusaDatabase.getDatabase(application).parcelDao()),
         accessPassDao = MedusaDatabase.getDatabase(application).accessPassDao(),
         accessLogDao = MedusaDatabase.getDatabase(application).accessLogDao(),
-        geminiRepo = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application)),
-        googleAiRepo = GoogleAiGeminiRepository(),
+        geminiRepo = GeminiRepository(
+            context = application,
+            secureApiKeyStorage = SecureApiKeyStorage(application)
+        ),
+        googleAiRepo = GoogleAiGeminiRepository(
+            context = application,
+            secureApiKeyStorage = SecureApiKeyStorage(application)
+        ),
         authRepo = FirebaseAuthRepository(),
         aiLearningRepo = AiLearningContextRepository(
             memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
             interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
             memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
-            geminiRepository = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application))
+            geminiRepository = GeminiRepository(
+                context = application,
+                secureApiKeyStorage = SecureApiKeyStorage(application)
+            )
         ),
         aiMemoryRepo = AiMemoryRepository(
             chatMessageDao = MedusaDatabase.getDatabase(application).chatMessageDao(),
@@ -113,7 +123,10 @@ class MedusaViewModel @Inject constructor(
             memoryDao = MedusaDatabase.getDatabase(application).memoryDao(),
             interactionDao = MedusaDatabase.getDatabase(application).interactionDao(),
             memoryNodeDao = MedusaDatabase.getDatabase(application).memoryNodeDao(),
-            geminiRepository = GeminiRepository(secureApiKeyStorage = SecureApiKeyStorage(application))
+            geminiRepository = GeminiRepository(
+                context = application,
+                secureApiKeyStorage = SecureApiKeyStorage(application)
+            )
         ),
         smartHomeService = SmartHomeService(
             context = application,

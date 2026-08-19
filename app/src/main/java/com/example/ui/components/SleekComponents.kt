@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Sensors
@@ -468,7 +469,8 @@ fun SleekBottomPillNav(
                 Triple(MedusaTab.SMART_HOME, "Hogar", Icons.Default.Sensors),
                 Triple(MedusaTab.QR_SCANNER, "QR", Icons.Default.QrCodeScanner),
                 Triple(MedusaTab.SMART_PARCEL, "Paquetes", Icons.Default.Inventory2),
-                Triple(MedusaTab.MEMORY_VAULT, "Bóveda", Icons.Default.Memory)
+                Triple(MedusaTab.MEMORY_VAULT, "Bóveda", Icons.Default.Memory),
+                Triple(MedusaTab.SETTINGS_NEXUS, "Nexus", Icons.Default.Palette)
             )
 
             tabs.forEach { (tab, label, icon) ->
@@ -480,6 +482,7 @@ fun SleekBottomPillNav(
                     MedusaTab.QR_SCANNER -> Color(0xFFFFD54F)
                     MedusaTab.SMART_PARCEL -> Color(0xFFFF9100)
                     MedusaTab.MEMORY_VAULT -> Color(0xFF7C4DFF)
+                    MedusaTab.SETTINGS_NEXUS -> Color(0xFFE040FB)
                 }
 
                 Row(

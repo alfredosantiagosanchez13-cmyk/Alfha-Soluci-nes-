@@ -7,6 +7,7 @@ import com.example.BuildConfig
 import com.example.data.api.ContentDto
 import com.example.data.api.GeminiApiService
 import com.example.data.api.GeminiRequest
+import com.example.data.api.GeminiResponse
 import com.example.data.api.InlineDataDto
 import com.example.data.api.PartDto
 import com.example.data.api.RetrofitClient
@@ -14,6 +15,7 @@ import com.example.data.api.SystemInstructionDto
 import com.example.data.db.MemoryNodeEntity
 import com.example.data.model.PackageScanResult
 import com.example.data.model.ResidentDirectory
+import com.example.data.security.SecureApiKeyProvider
 import com.example.data.security.SecureApiKeyStorage
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
@@ -30,12 +32,14 @@ import javax.inject.Singleton
 /**
  * Repositorio de Google AI / Gemini API para Sistema Medusa OS.
  *
- * Utiliza de forma prioritaria la GEMINI_API_KEY cifrada en EncryptedSharedPreferences (AES-256 GCM)
- * a través de [SecureApiKeyStorage], ejecutando consultas y procesando respuestas de forma 100% asíncrona
- * mediante Kotlin Coroutines (Dispatchers.IO) y Reactive Streams (Flow).
+ * Utiliza [SecureApiKeyProvider] y [SecureApiKeyStorage] para recuperar de forma segura
+ * la GEMINI_API_KEY almacenada en EncryptedSharedPreferences (AES-256 GCM / AES-256 SIV),
+ * ejecutando consultas y procesando respuestas de forma 100% asíncrona mediante Kotlin Coroutines
+ * (Dispatchers.IO) y Reactive Streams (Flow).
  */
 @Singleton
 class GeminiRepository @Inject constructor(
+    private val context: Context? = null,
     private val secureApiKeyStorage: SecureApiKeyStorage? = null,
     private val apiService: GeminiApiService = RetrofitClient.geminiApi
 ) {
@@ -46,21 +50,51 @@ class GeminiRepository @Inject constructor(
     }
 
     /**
-     * Resuelve la clave de API con orden de prioridad de seguridad:
+     * Resuelve la clave de API con orden de prioridad de seguridad y sin hardcoding:
      * 1. Clave personalizada explícita (si se suministra en la llamada)
-     * 2. Clave cifrada guardada en EncryptedSharedPreferences (AES-256 GCM)
-     * 3. Variable de compilación BuildConfig.GEMINI_API_KEY (desde .env)
+     * 2. Clave segura provista por [SecureApiKeyProvider] desde EncryptedSharedPreferences
+     * 3. Clave cifrada guardada en [SecureApiKeyStorage]
+     * 4. Variable de compilación BuildConfig.GEMINI_API_KEY (inyectada desde .env / Secrets)
      */
-    fun resolveApiKey(customApiKey: String? = null): String? {
+    fun resolveApiKey(customApiKey: String? = null, callContext: Context? = null): String? {
         if (!customApiKey.isNullOrBlank()) {
             return customApiKey.trim()
         }
+
+        // Recuperar dinámicamente desde SecureApiKeyProvider usando EncryptedSharedPreferences
+        val targetContext = callContext ?: context
+        if (targetContext != null) {
+            val providerKey = SecureApiKeyProvider.getApiKey(targetContext)
+            if (!providerKey.isNullOrBlank()) {
+                return providerKey.trim()
+            }
+        }
+
         val encryptedKey = secureApiKeyStorage?.getApiKey()?.trim()
         if (!encryptedKey.isNullOrBlank()) {
             return encryptedKey
         }
+
         val envKey = BuildConfig.GEMINI_API_KEY.trim()
         return if (envKey.isNotBlank() && envKey != "MY_GEMINI_API_KEY") envKey else null
+    }
+
+    private suspend fun executeWithModelFallback(
+        apiKey: String,
+        request: GeminiRequest
+    ): GeminiResponse {
+        val candidateModels = listOf("gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro")
+        var lastError: Exception? = null
+
+        for (model in candidateModels) {
+            try {
+                return apiService.generateContent(model = model, apiKey = apiKey, request = request)
+            } catch (e: Exception) {
+                lastError = e
+                Log.w(TAG, "Llamada a modelo $model falló, probando alternativa...", e)
+            }
+        }
+        throw (lastError ?: Exception("No se pudo obtener respuesta de los modelos de Gemini."))
     }
 
     /**
@@ -109,13 +143,13 @@ class GeminiRepository @Inject constructor(
                 )
             )
 
-            val response = apiService.generateContent(apiKey, request)
+            val response = executeWithModelFallback(apiKey, request)
             val replyText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
             if (!replyText.isNullOrBlank()) {
                 Result.success(replyText)
             } else {
-                Result.failure(Exception("Respuesta vacía o formato no reconocido por la API de Google AI."))
+                Result.failure(Exception("Respuesta vacía de Google AI."))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Excepción en consulta asíncrona a Google AI", e)
@@ -149,7 +183,7 @@ class GeminiRepository @Inject constructor(
                 }
             )
 
-            val response = apiService.generateContent(apiKey, request)
+            val response = executeWithModelFallback(apiKey, request)
             val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
             if (!text.isNullOrBlank()) {
                 Result.success(text)
@@ -224,7 +258,7 @@ class GeminiRepository @Inject constructor(
                 )
             )
 
-            val response = apiService.generateContent(key, request)
+            val response = executeWithModelFallback(key, request)
             val textResult = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
 
             val startIdx = textResult.indexOf("{")
@@ -342,7 +376,7 @@ class GeminiRepository @Inject constructor(
                 )
             )
 
-            val response = apiService.generateContent(key, request)
+            val response = executeWithModelFallback(key, request)
             val textResult = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim() ?: return@withContext null
 
             if (textResult.contains("NONE") || !textResult.contains("{")) return@withContext null

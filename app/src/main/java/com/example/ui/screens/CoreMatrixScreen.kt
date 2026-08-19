@@ -141,6 +141,7 @@ fun CoreMatrixScreen(
                 MedusaTab.SMART_HOME -> onNavigateToSmartHome()
                 MedusaTab.QR_SCANNER -> onNavigateToParcel()
                 MedusaTab.CORE_MATRIX -> {}
+                MedusaTab.SETTINGS_NEXUS -> {}
             }
         },
         onRegisterAttendance = onRegisterAttendance,

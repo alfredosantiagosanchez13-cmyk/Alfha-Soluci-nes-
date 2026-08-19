@@ -2,9 +2,12 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.repository.GeminiRepository
+import com.example.data.security.SecureApiKeyProvider
 import com.example.data.security.SecureApiKeyStorage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -51,5 +54,32 @@ class SecureApiKeyStorageTest {
         val cleared = secureStorage.clearApiKey()
         assertTrue("Clearing key should return true", cleared)
         assertEquals("", secureStorage.getApiKey())
+    }
+
+    @Test
+    fun secureApiKeyProviderReturnsNullWhenEmpty() {
+        secureStorage.clearApiKey()
+        val key = SecureApiKeyProvider.getApiKey(context)
+        assertNull("SecureApiKeyProvider should return null when no key is stored", key)
+    }
+
+    @Test
+    fun secureApiKeyProviderReturnsStoredKey() {
+        val testKey = "AIzaSyProviderTestKey123"
+        secureStorage.saveApiKey(testKey)
+
+        val retrievedKey = SecureApiKeyProvider.getApiKey(context)
+        assertEquals("SecureApiKeyProvider must return the stored key", testKey, retrievedKey)
+    }
+
+    @Test
+    fun geminiRepositoryDynamicallyResolvesKeyFromProvider() {
+        val testKey = "AIzaSyDynamicGeminiAuthKey456"
+        secureStorage.saveApiKey(testKey)
+
+        val repo = GeminiRepository(context = context)
+        val resolvedKey = repo.resolveApiKey()
+
+        assertEquals("GeminiRepository must dynamically resolve the key from SecureApiKeyProvider", testKey, resolvedKey)
     }
 }

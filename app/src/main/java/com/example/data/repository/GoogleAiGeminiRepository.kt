@@ -1,11 +1,14 @@
 package com.example.data.repository
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.example.BuildConfig
 import com.example.data.db.MemoryNodeEntity
 import com.example.data.model.PackageScanResult
 import com.example.data.model.ResidentDirectory
+import com.example.data.security.SecureApiKeyProvider
+import com.example.data.security.SecureApiKeyStorage
 import com.google.ai.client.generativeai.Chat
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.Content
@@ -24,23 +27,43 @@ import javax.inject.Singleton
 /**
  * Repositorio que utiliza el SDK oficial de Google AI Client (com.google.ai.client.generativeai)
  * para interactuar con los modelos Gemini y generar respuestas conversacionales contextuales,
- * utilizando la clave GEMINI_API_KEY inyectada vía .env / BuildConfig.
+ * utilizando la clave segura provista por [SecureApiKeyProvider] / [SecureApiKeyStorage] o .env.
  */
 @Singleton
-class GoogleAiGeminiRepository @Inject constructor() {
+class GoogleAiGeminiRepository @Inject constructor(
+    private val context: Context? = null,
+    private val secureApiKeyStorage: SecureApiKeyStorage? = null
+) {
 
     companion object {
         private const val TAG = "GoogleAiGeminiRepo"
         const val DEFAULT_MODEL = "gemini-2.5-flash"
+        val FALLBACK_MODELS = listOf("gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro")
     }
 
     /**
      * Resuelve la clave de API con prioridad:
      * 1. Clave personalizada pasada en la llamada
-     * 2. Variable GEMINI_API_KEY del archivo .env a través de BuildConfig
+     * 2. Clave segura provista por [SecureApiKeyProvider] desde EncryptedSharedPreferences
+     * 3. Clave cifrada guardada en [SecureApiKeyStorage]
+     * 4. Variable GEMINI_API_KEY del archivo .env a través de BuildConfig
      */
-    fun resolveApiKey(customKey: String? = null): String? {
+    fun resolveApiKey(customKey: String? = null, callContext: Context? = null): String? {
         if (!customKey.isNullOrBlank()) return customKey.trim()
+
+        val targetContext = callContext ?: context
+        if (targetContext != null) {
+            val keyFromProvider = SecureApiKeyProvider.getApiKey(targetContext)
+            if (!keyFromProvider.isNullOrBlank()) {
+                return keyFromProvider.trim()
+            }
+        }
+
+        val storedKey = secureApiKeyStorage?.getApiKey()?.trim()
+        if (!storedKey.isNullOrBlank()) {
+            return storedKey
+        }
+
         val envKey = BuildConfig.GEMINI_API_KEY
         return if (envKey.isNotBlank() && envKey != "MY_GEMINI_API_KEY") envKey.trim() else null
     }
@@ -57,7 +80,7 @@ class GoogleAiGeminiRepository @Inject constructor() {
         topP: Float = 0.95f
     ): GenerativeModel {
         val apiKey = resolveApiKey(customApiKey)
-            ?: throw IllegalStateException("GEMINI_API_KEY no detectada. Configúrala en el archivo .env o en el Secrets Panel.")
+            ?: throw IllegalStateException("GEMINI_API_KEY no detectada. Configúrala en Sleek Nexus Settings o en el Secrets Panel (.env).")
 
         val config = generationConfig {
             this.temperature = temperature
@@ -79,6 +102,7 @@ class GoogleAiGeminiRepository @Inject constructor() {
 
     /**
      * Genera una respuesta conversacional sincrónica/unidireccional con contexto del sistema y memoria Room.
+     * Con soporte de fallback automático de modelos ante errores de endpoint (404).
      */
     suspend fun generateConversationalResponse(
         prompt: String,
@@ -88,29 +112,44 @@ class GoogleAiGeminiRepository @Inject constructor() {
         customApiKey: String? = null,
         modelName: String = DEFAULT_MODEL
     ): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val systemInstruction = buildSystemPrompt(userRoleLabel, memories)
-            val model = createGenerativeModel(
-                modelName = modelName,
-                customApiKey = customApiKey,
-                systemInstructionText = systemInstruction
+        val apiKey = resolveApiKey(customApiKey)
+            ?: return@withContext Result.failure(
+                IllegalStateException("Clave API de Gemini no detectada. Configúrala de forma cifrada en Sleek Nexus Settings o en el Secrets Panel (.env).")
             )
 
-            val formattedHistory = mapHistoryToContents(chatHistory)
-            val chat: Chat = model.startChat(history = formattedHistory)
+        val systemInstruction = buildSystemPrompt(userRoleLabel, memories)
+        val formattedHistory = mapHistoryToContents(chatHistory)
+        val modelsToTry = (listOf(modelName) + FALLBACK_MODELS).distinct()
+        var lastError: Exception? = null
 
-            val response = chat.sendMessage(prompt)
-            val responseText = response.text ?: ""
+        for (candidateModel in modelsToTry) {
+            try {
+                val model = GenerativeModel(
+                    modelName = candidateModel,
+                    apiKey = apiKey,
+                    generationConfig = generationConfig {
+                        temperature = 0.7f
+                        topK = 40
+                        topP = 0.95f
+                    },
+                    systemInstruction = systemInstruction.takeIf { it.isNotBlank() }?.let { content { text(it) } }
+                )
 
-            if (responseText.isNotBlank()) {
-                Result.success(responseText)
-            } else {
-                Result.failure(IllegalStateException("La respuesta generada por Gemini está vacía."))
+                val chat: Chat = model.startChat(history = formattedHistory)
+                val response = chat.sendMessage(prompt)
+                val responseText = response.text ?: ""
+
+                if (responseText.isNotBlank()) {
+                    return@withContext Result.success(responseText)
+                }
+            } catch (e: Exception) {
+                lastError = e
+                Log.w(TAG, "Intento con modelo Google AI '$candidateModel' falló, evaluando fallback...", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generando respuesta conversacional con Google AI SDK", e)
-            Result.failure(e)
         }
+
+        Log.e(TAG, "Error generando respuesta conversacional con Google AI SDK en todos los modelos candidatos", lastError)
+        Result.failure(lastError ?: IllegalStateException("La respuesta generada por Gemini está vacía."))
     }
 
     /**

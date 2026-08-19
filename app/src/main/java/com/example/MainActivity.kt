@@ -17,23 +17,36 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +73,7 @@ import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CoreMatrixScreen
 import com.example.ui.screens.MemoryVaultScreen
 import com.example.ui.screens.QrScannerScreen
+import com.example.ui.screens.SleekNexusSettingsScreen
 import com.example.ui.screens.SmartHomeScreen
 import com.example.ui.screens.SmartParcelScreen
 import com.example.ui.theme.SistemaMedusaTheme
@@ -181,12 +195,12 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                     activeRole = activeRole,
                     currentUserProfile = authUserProfile,
                     onRoleSelected = { viewModel.selectUserRole(it) },
-                    onOpenApiKey = { showApiKeyDialog = true },
+                    onOpenApiKey = { viewModel.selectTab(MedusaTab.SETTINGS_NEXUS) },
                     onOpenAuth = {
                         viewModel.clearAuthError()
                         showAuthDialog = true
                     },
-                    onOpenNexusSettings = { showNexusSettingsDialog = true },
+                    onOpenNexusSettings = { viewModel.selectTab(MedusaTab.SETTINGS_NEXUS) },
                     onLockPin = { viewModel.lockScreen() }
                 )
             },
@@ -287,6 +301,12 @@ fun MedusaAppScreen(viewModel: MedusaViewModel) {
                                 onClearAllMemories = { viewModel.clearAllMemories() }
                             )
                         }
+                        MedusaTab.SETTINGS_NEXUS -> {
+                            SleekNexusSettingsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { viewModel.selectTab(MedusaTab.CORE_MATRIX) }
+                            )
+                        }
                     }
                 }
             }
@@ -354,21 +374,34 @@ fun ApiKeyDialog(
     onSave: (String) -> Unit
 ) {
     var keyText by remember { mutableStateOf(currentKey) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SleekSurface,
         title = {
-            Text(
-                text = "CONFIGURAR GEMINI API KEY",
-                style = MaterialTheme.typography.labelSmall,
-                color = SleekVioletPrimary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Key,
+                    contentDescription = null,
+                    tint = SleekVioletPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "CONFIGURAR GEMINI API KEY",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SleekVioletPrimary,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+            }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "AI Studio inyecta automáticamente GEMINI_API_KEY. Si deseas usar una clave personalizada, ingrésala a continuación:",
+                    text = "La clave se cifra en hardware con Android Security-Crypto (AES-256 GCM) y se almacena en EncryptedSharedPreferences.",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = 12.sp,
                     color = SleekTextSecondary
@@ -376,31 +409,66 @@ fun ApiKeyDialog(
 
                 OutlinedTextField(
                     value = keyText,
-                    onValueChange = { keyText = it },
+                    onValueChange = {
+                        keyText = it
+                        if (validationError != null && it.isNotBlank()) {
+                            validationError = null
+                        }
+                    },
                     placeholder = { Text("AIzaSy...", color = SleekTextMuted) },
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(
+                                imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (isPasswordVisible) "Ocultar" else "Mostrar",
+                                tint = SleekVioletPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    },
+                    isError = validationError != null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { testTag = "api_key_input_field" },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = SleekVioletPrimary,
                         unfocusedBorderColor = SleekBorder,
+                        errorBorderColor = Color(0xFFFF5252),
                         focusedTextColor = SleekTextPrimary,
                         unfocusedTextColor = SleekTextPrimary
                     ),
                     singleLine = true
                 )
+
+                if (validationError != null) {
+                    Text(
+                        text = validationError ?: "",
+                        color = Color(0xFFFF5252),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(keyText.trim()) },
+                onClick = {
+                    val trimmed = keyText.trim()
+                    if (trimmed.isEmpty()) {
+                        validationError = "La clave de API no puede estar vacía."
+                    } else {
+                        validationError = null
+                        onSave(trimmed)
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = SleekVioletPrimary,
                     contentColor = SleekVioletDark
                 ),
                 modifier = Modifier.semantics { testTag = "save_api_key_button" }
             ) {
-                Text("Guardar", fontWeight = FontWeight.Bold)
+                Text("Guardar Cifrada", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
